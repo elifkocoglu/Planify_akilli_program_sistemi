@@ -1,0 +1,1 @@
+# Planify_akilli_program_sistemi
