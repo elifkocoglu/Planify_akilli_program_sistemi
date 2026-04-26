@@ -7,25 +7,21 @@ export default async function AuthLayout({
 }: {
   children: React.ReactNode
 }) {
-  // Oturum açıksa dashboard'a yönlendir
   const supabase = createClient()
 
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-    if (user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
 
-      redirect(getRedirectPath(profile?.role))
-    }
-  } catch {
-    // Oturum yoksa layout'u göster
+    // redirect() MUST be outside try/catch
+    redirect(getRedirectPath(profile?.role))
   }
 
   return (

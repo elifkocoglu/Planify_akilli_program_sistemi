@@ -1,6 +1,8 @@
-import { redirect } from 'next/navigation'
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
 import {
   Card,
   CardContent,
@@ -11,78 +13,100 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { AlertCircle, CheckCircle2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Building2 } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { registerAction } from './actions'
 
-interface RegisterPageProps {
-  searchParams: { error?: string; success?: string }
-}
-
-export const metadata = {
-  title: 'Kayıt Ol — Planify',
-  description: 'Planify hesabı oluşturun.',
-}
-
-async function registerAction(formData: FormData): Promise<never> {
-  'use server'
-  const fullName = formData.get('full_name') as string
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
-  const confirmPassword = formData.get('confirm_password') as string
-
-  // Şifre eşleşme kontrolü
-  if (password !== confirmPassword) {
-    redirect('/register?error=Sifreler+eslesmıyor')
-  }
-
-  // Şifre uzunluğu kontrolü
-  if (password.length < 6) {
-    redirect('/register?error=Sifre+en+az+6+karakter+olmali')
-  }
-
-  const supabase = createClient()
-
-  try {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-          role: 'staff',
-        },
-      },
-    })
-
-    if (error) {
-      if (
-        error.message.toLowerCase().includes('already registered') ||
-        error.message.toLowerCase().includes('already exists') ||
-        error.message.toLowerCase().includes('user already')
-      ) {
-        redirect('/register?error=Bu+eposta+zaten+kayitli')
-      }
-      redirect('/register?error=Kayit+sirasinda+hata+olustu')
-    }
-  } catch (err) {
-    throw err
-  }
-
-  redirect('/register?success=1')
-}
-
-function getErrorMessage(error?: string): string | null {
+function getErrorMessage(error?: string | null): string | null {
   if (!error) return null
   const decoded = decodeURIComponent(error.replace(/\+/g, ' '))
-  if (decoded.includes('eslesmıyor') || decoded.includes('eslesmıyor'))
+  if (decoded.includes('eslesmıyor') || decoded.includes('eslesmiyor'))
     return 'Şifreler eşleşmiyor.'
   if (decoded.includes('6 karakter')) return 'Şifre en az 6 karakter olmalı.'
   if (decoded.includes('kayitli')) return 'Bu e-posta zaten kayıtlı.'
   return decoded
 }
 
-export default function RegisterPage({ searchParams }: RegisterPageProps) {
-  const errorMessage = getErrorMessage(searchParams.error)
-  const isSuccess = searchParams.success === '1'
+export default function RegisterPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  
+  const paramError = searchParams.get('error')
+  const isSuccess = searchParams.get('success') === '1'
+  const urlCode = searchParams.get('code')
+
+  const [hasCode, setHasCode] = useState(!!urlCode)
+  const [inviteCode, setInviteCode] = useState(urlCode || '')
+  const [inviteData, setInviteData] = useState<{valid: boolean, institution_name?: string, role?: string, reason?: string} | null>(null)
+  const [verifying, setVerifying] = useState(false)
+  const [clientError, setClientError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (hasCode && inviteCode && inviteCode.length > 3) {
+      const verifyCode = async () => {
+        setVerifying(true)
+        try {
+          const res = await fetch(`/api/invitations/verify?code=${inviteCode}`)
+          const data = await res.json()
+          setInviteData(data)
+        } catch (err) {
+          setInviteData({ valid: false, reason: 'Kod doğrulanamadı' })
+        } finally {
+          setVerifying(false)
+        }
+      }
+      
+      const timeoutId = setTimeout(verifyCode, 500)
+      return () => clearTimeout(timeoutId)
+    } else {
+      setInviteData(null)
+    }
+  }, [inviteCode, hasCode])
+
+  const errorMessage = clientError || getErrorMessage(paramError)
+
+  const handleInviteSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setClientError(null)
+
+    if (!inviteData?.valid) {
+      setClientError('Lütfen geçerli bir davet kodu girin.')
+      return
+    }
+
+    const formData = new FormData(e.currentTarget)
+    const password = formData.get('password') as string
+    const confirmPassword = formData.get('confirm_password') as string
+    const fullName = formData.get('full_name') as string
+
+    if (password !== confirmPassword) {
+      setClientError('Şifreler eşleşmiyor.')
+      return
+    }
+    if (password.length < 6) {
+      setClientError('Şifre en az 6 karakter olmalı.')
+      return
+    }
+
+    try {
+      const res = await fetch('/api/invitations/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: inviteCode, password, full_name: fullName })
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        // Yeni sayfayı yenilemek ve context'i doldurmak için router.refresh kullanılabilir
+        // veya direkt anasayfaya atılır middleware dashboarda seçer
+        window.location.href = '/'
+      } else {
+        setClientError(data.error || 'Kayıt sırasında hata oluştu.')
+      }
+    } catch (err) {
+      setClientError('Bir hata oluştu.')
+    }
+  }
 
   return (
     <Card className="border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl">
@@ -105,7 +129,7 @@ export default function RegisterPage({ searchParams }: RegisterPageProps) {
           </div>
         </div>
         <CardTitle className="text-2xl font-bold text-center text-white">
-          Hesap Oluştur
+          {hasCode ? 'Davet ile Katıl' : 'Hesap Oluştur'}
         </CardTitle>
         <CardDescription className="text-center text-blue-100/60">
           Planify&apos;a katılın
@@ -132,12 +156,58 @@ export default function RegisterPage({ searchParams }: RegisterPageProps) {
         ) : (
           <>
             {errorMessage && (
-              <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                <span>{errorMessage}</span>
+              <Alert variant="destructive" className="mb-4 bg-red-500/10 border-red-500/30 text-red-300 [&>svg]:text-red-300">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Uyarı</AlertTitle>
+                <AlertDescription>{errorMessage}</AlertDescription>
+              </Alert>
+            )}
+
+            {!urlCode && (
+              <Label className="flex items-center space-x-2 text-sm text-blue-100/80 mb-6 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={hasCode} 
+                  onChange={(e) => {
+                    setHasCode(e.target.checked)
+                    setClientError(null)
+                  }} 
+                  className="rounded border-white/20 bg-white/5 text-blue-500 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 w-4 h-4"
+                />
+                <span>Davet kodunuz var mı?</span>
+              </Label>
+            )}
+
+            {hasCode && (
+              <div className="mb-6 space-y-2">
+                <Label htmlFor="code" className="text-blue-100/80 text-sm">Davet Kodu</Label>
+                <Input
+                  id="code"
+                  type="text"
+                  placeholder="Kodu girin"
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value)}
+                  className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus:border-blue-400 focus:ring-blue-400 uppercase"
+                  disabled={!!urlCode}
+                />
+                {verifying && <p className="text-xs text-blue-300">Doğrulanıyor...</p>}
+                {inviteData && inviteData.valid && (
+                  <div className="flex items-center gap-2 mt-2 p-3 bg-green-500/20 border border-green-500/30 rounded-lg text-green-300 text-sm">
+                    <Building2 className="w-5 h-5 shrink-0" />
+                    <span><b>{inviteData.institution_name}</b> ailesine katılıyorsunuz.</span>
+                  </div>
+                )}
+                {inviteData && !inviteData.valid && inviteCode.length > 3 && (
+                  <p className="text-xs text-red-400">{inviteData.reason || 'Geçersiz davet kodu'}</p>
+                )}
               </div>
             )}
-            <form action={registerAction} className="space-y-4">
+
+            <form 
+              action={hasCode ? undefined : registerAction} 
+              onSubmit={hasCode ? handleInviteSubmit : undefined}
+              className="space-y-4"
+            >
               <div className="space-y-2">
                 <Label htmlFor="full_name" className="text-blue-100/80 text-sm">
                   Ad Soyad
@@ -152,20 +222,24 @@ export default function RegisterPage({ searchParams }: RegisterPageProps) {
                   className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus:border-blue-400 focus:ring-blue-400"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-blue-100/80 text-sm">
-                  E-posta
-                </Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="ornek@kurum.edu.tr"
-                  required
-                  autoComplete="email"
-                  className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus:border-blue-400 focus:ring-blue-400"
-                />
-              </div>
+
+              {!hasCode && (
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-blue-100/80 text-sm">
+                    E-posta
+                  </Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="ornek@kurum.edu.tr"
+                    required
+                    autoComplete="email"
+                    className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus:border-blue-400 focus:ring-blue-400"
+                  />
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-blue-100/80 text-sm">
                   Şifre
@@ -196,7 +270,8 @@ export default function RegisterPage({ searchParams }: RegisterPageProps) {
               </div>
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium shadow-lg shadow-blue-500/20 transition-all duration-200"
+                disabled={hasCode ? (!inviteData?.valid || verifying) : false}
+                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium shadow-lg shadow-blue-500/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 id="register-submit-btn"
               >
                 Kayıt Ol

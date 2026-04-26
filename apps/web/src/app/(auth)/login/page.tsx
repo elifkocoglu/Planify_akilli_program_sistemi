@@ -13,9 +13,10 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { AlertCircle } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
 interface LoginPageProps {
-  searchParams: { error?: string }
+  searchParams: { error?: string; reason?: string }
 }
 
 export const metadata = {
@@ -23,62 +24,60 @@ export const metadata = {
   description: 'Planify hesabınıza giriş yapın.',
 }
 
-async function loginAction(formData: FormData): Promise<never> {
+async function loginAction(formData: FormData) {
   'use server'
   const email = formData.get('email') as string
   const password = formData.get('password') as string
 
   const supabase = createClient()
 
-  try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  })
 
-    if (error) {
-      if (
-        error.message.toLowerCase().includes('invalid') ||
-        error.message.toLowerCase().includes('credentials')
-      ) {
-        redirect('/login?error=Eposta+veya+sifre+hatali')
-      }
-      redirect('/login?error=Giris+basarisiz+oldu')
+  if (error) {
+    if (
+      error.message.toLowerCase().includes('invalid') ||
+      error.message.toLowerCase().includes('credentials')
+    ) {
+      redirect('/login?error=Eposta+veya+sifre+hatali')
     }
-
-    // is_active kontrolü
-    if (data.user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role, is_active')
-        .eq('id', data.user.id)
-        .single()
-
-      if (profile?.is_active === false) {
-        await supabase.auth.signOut()
-        redirect('/login?error=Hesabiniz+devre+disi+birakilmistir')
-      }
-
-      redirect(getRedirectPath(profile?.role))
-    }
-  } catch (err) {
-    // redirect() throws — bunu yeniden fırlat
-    throw err
+    redirect('/login?error=Giris+basarisiz+oldu')
   }
 
-  redirect('/login?error=Bilinmeyen+bir+hata+olustu')
-}
+  if (!data.user) {
+    redirect('/login?error=Bilinmeyen+bir+hata+olustu')
+  }
 
-function getErrorMessage(error?: string): string | null {
-  if (!error) return null
-  const decoded = decodeURIComponent(error.replace(/\+/g, ' '))
-  if (decoded.includes('devre disi')) return 'Hesabınız devre dışı bırakılmıştır.'
-  if (decoded.includes('hatali')) return 'E-posta veya şifre hatalı.'
-  return decoded
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, is_active')
+    .eq('id', data.user.id)
+    .single()
+
+  if (profile?.is_active === false) {
+    await supabase.auth.signOut()
+    redirect('/login?reason=disabled')
+  }
+
+  const path = getRedirectPath(profile?.role ?? 'staff')
+
+  // redirect() MUST be outside try/catch — it throws an exception internally
+  redirect(path)
 }
 
 export default function LoginPage({ searchParams }: LoginPageProps) {
-  const errorMessage = getErrorMessage(searchParams.error)
+  let errorMessage: string | null = null
+
+  if (searchParams.reason === 'disabled') {
+    errorMessage =
+      'Hesabınız devre dışı bırakılmıştır. Lütfen yöneticinizle iletişime geçin.'
+  } else if (searchParams.error) {
+    const decoded = decodeURIComponent(searchParams.error.replace(/\+/g, ' '))
+    if (decoded.includes('hatali')) errorMessage = 'E-posta veya şifre hatalı.'
+    else errorMessage = decoded
+  }
 
   return (
     <Card className="border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl">
@@ -109,10 +108,14 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
       </CardHeader>
       <CardContent>
         {errorMessage && (
-          <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            <span>{errorMessage}</span>
-          </div>
+          <Alert
+            variant="destructive"
+            className="mb-4 bg-red-500/10 border-red-500/30 text-red-300 [&>svg]:text-red-300"
+          >
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Uyarı</AlertTitle>
+            <AlertDescription>{errorMessage}</AlertDescription>
+          </Alert>
         )}
         <form action={loginAction} className="space-y-4">
           <div className="space-y-2">
