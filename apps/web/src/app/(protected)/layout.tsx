@@ -26,16 +26,23 @@ export default async function ProtectedLayout({
     .eq('id', user.id)
     .single()
 
+  // DEBUG: profil hatası konsolda göster
+  if (profileError) {
+    console.error('[ProtectedLayout] Profile fetch error:', profileError.message, profileError.code)
+  }
+
   if (profileError || !profile) {
-    // Profil yoksa çıkış yap
+    // Profil bulunamadıysa signOut yapma — RLS sorunu olabilir
+    // Sadece login'e yönlendir
+    console.error('[ProtectedLayout] No profile found for user:', user.id)
     await supabase.auth.signOut()
-    redirect('/login')
+    redirect('/login?error=Profil+bulunamadi')
   }
 
   // Hesap aktiflik kontrolü
   if (!profile.is_active) {
     await supabase.auth.signOut()
-    redirect('/login?error=Hesabiniz+devre+disi+birakilmistir')
+    redirect('/login?reason=disabled')
   }
 
   const userProfile: UserProfile = {
