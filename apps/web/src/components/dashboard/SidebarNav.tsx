@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard } from 'lucide-react'
+import { LayoutDashboard, CalendarRange } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { UserRole } from '@/lib/auth/getRedirectPath'
 
@@ -13,12 +13,23 @@ interface NavItem {
   roles: UserRole[]
 }
 
+const roleBasePaths: Partial<Record<UserRole, string>> = {
+  institution_admin: '/dashboard/admin',
+  department_admin: '/dashboard/dept-admin',
+}
+
 const navItems: NavItem[] = [
   {
     label: 'Dashboard',
     href: '/dashboard',
     icon: <LayoutDashboard className="h-4 w-4" />,
     roles: ['super_admin', 'institution_admin', 'department_admin', 'staff'],
+  },
+  {
+    label: 'Programlar',
+    href: '/schedules',
+    icon: <CalendarRange className="h-4 w-4" />,
+    roles: ['institution_admin', 'department_admin'],
   },
 ]
 
@@ -35,12 +46,16 @@ export function SidebarNav({ role, onNavigate }: SidebarNavProps) {
   return (
     <nav className="flex flex-col gap-1 px-3">
       {filteredItems.map((item) => {
+        // /dashboard stays as-is, relative paths get role prefix
+        const resolvedHref = item.href.startsWith('/dashboard')
+          ? item.href
+          : `${roleBasePaths[role] ?? '/dashboard'}${item.href}`
         const isActive =
-          pathname === item.href || pathname.startsWith(item.href + '/')
+          pathname === resolvedHref || pathname.startsWith(resolvedHref + '/')
         return (
           <Link
             key={item.href}
-            href={item.href}
+            href={resolvedHref}
             onClick={onNavigate}
             className={cn(
               'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150',
