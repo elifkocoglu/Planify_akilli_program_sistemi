@@ -2,103 +2,37 @@ import { NextResponse } from 'next/server'
 import { requireAuth, isAuthError } from '@/lib/api/auth-helpers'
 
 // ─────────────────────────────────────────────────────────────
-// GET /api/departments — Kurumun departman listesi
+// PATCH /api/departments/[id] — Departman güncelle
 // ─────────────────────────────────────────────────────────────
-export async function GET() {
-  try {
-    const auth = await requireAuth()
-    if (isAuthError(auth)) return auth
-    const { profile, supabase } = auth
-
-    let query = supabase
-      .from('departments')
-      .select('id, name, type')
-      .eq('institution_id', profile.institution_id)
-      .order('name', { ascending: true })
-
-    // department_admin ise kendi departmanlarını filtrele
-    if (profile.role === 'department_admin') {
-      const { data: adminDepts } = await supabase
-        .from('admin_departments')
-        .select('department_id')
-        .eq('profile_id', profile.id)
-
-      const deptIds = adminDepts?.map((d) => d.department_id) ?? []
-      if (deptIds.length > 0) {
-        query = query.in('id', deptIds)
-      } else {
-        return NextResponse.json({ success: true, departments: [] })
-      }
-    }
-
-    const { data: departments, error } = await query
-
-    if (error) {
-      return NextResponse.json(
-        { success: false, error: `Departmanlar getirilemedi: ${error.message}` },
-        { status: 500 }
-      )
-    }
-
-    return NextResponse.json({ success: true, departments })
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Bilinmeyen bir hata oluştu'
-    return NextResponse.json({ success: false, error: message }, { status: 500 })
-  }
-}
-
-// ─────────────────────────────────────────────────────────────
-// POST /api/departments — Yeni departman oluştur
-// ─────────────────────────────────────────────────────────────
-export async function POST(request: Request) {
+export async function PATCH(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
     const auth = await requireAuth(['institution_admin'])
     if (isAuthError(auth)) return auth
     const { profile, supabase } = auth
 
     const body = await request.json()
-    const { name, type } = body
 
-    if (!name || !type) {
-      return NextResponse.json(
-        { success: false, error: 'Departman adı ve tipi zorunludur' },
-        { status: 400 }
-      )
-    }
+    const updateData: Record<string, unknown> = {}
+    if (body.name !== undefined) updateData.name = body.name
+    if (body.type !== undefined) updateData.type = body.type
 
-    if (!['duty', 'lesson'].includes(type)) {
-      return NextResponse.json(
-        { success: false, error: 'Geçersiz departman tipi. "duty" veya "lesson" olmalı' },
-        { status: 400 }
-      )
-    }
-
-    const { data: department, error: insertError } = await supabase
+    const { data: department, error: updateError } = await supabase
       .from('departments')
-      .insert({
-        institution_id: profile.institution_id,
-        name,
-        type,
-      })
+      .update(updateData)
+      .eq('id', params.id)
+      .eq('institution_id', profile.institution_id)
       .select()
       .single()
 
-    if (insertError) {
+    if (updateError) {
       return NextResponse.json(
-        { success: false, error: `Departman oluşturulamadı: ${insertError.message}` },
+        { success: false, error: `Departman güncellenemedi: ${updateError.message}` },
         { status: 500 }
       )
     }
-
-    // Audit log
-    await supabase.from('audit_logs').insert({
-      institution_id: profile.institution_id,
-      user_id: profile.id,
-      action: 'created',
-      table_name: 'departments',
-      record_id: department.id,
-      new_value: { name, type },
-    })
 
     return NextResponse.json({ success: true, department })
   } catch (error: unknown) {
@@ -107,3 +41,57 @@ export async function POST(request: Request) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────
+// DELETE /api/departments/[id] — Departman sil
+// ─────────────────────────────────────────────────────────────
+export async function DELETE(
+  _request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const auth = await requireAuth(['institution_admin'])
+    if (isAuthError(auth)) return auth
+    const { profile, supabase } = auth
+
+    // Departmanda personel var mı kontrol et
+    const { count } = await supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('department_id', params.id)
+      .eq('is_active', true)
+
+    if (count && count > 0) {
+      return NextResponse.json(
+        { success: false, error: `Bu departmanda ${count} aktif personel var. Önce personelleri taşıyın.` },
+        { status: 400 }
+      )
+    }
+
+    const { error: deleteError } = await supabase
+      .from('departments')
+      .delete()
+      .eq('id', params.id)
+      .eq('institution_id', profile.institution_id)
+
+    if (deleteError) {
+      return NextResponse.json(
+        { success: false, error: `Departman silinemedi: ${deleteError.message}` },
+        { status: 500 }
+      )
+    }
+
+    // Audit log
+    await supabase.from('audit_logs').insert({
+      institution_id: profile.institution_id,
+      user_id: profile.id,
+      action: 'deleted',
+      table_name: 'departments',
+      record_id: params.id,
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Bilinmeyen bir hata oluştu'
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
+  }
+}

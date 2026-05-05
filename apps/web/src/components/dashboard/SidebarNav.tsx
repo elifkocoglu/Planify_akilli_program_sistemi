@@ -2,7 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, CalendarRange } from 'lucide-react'
+import {
+  LayoutDashboard,
+  CalendarRange,
+  Users,
+  ShieldBan,
+  Building2,
+  Tag,
+  Bell,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { UserRole } from '@/lib/auth/getRedirectPath'
 
@@ -29,6 +37,36 @@ const navItems: NavItem[] = [
     label: 'Programlar',
     href: '/schedules',
     icon: <CalendarRange className="h-4 w-4" />,
+    roles: ['institution_admin', 'department_admin'],
+  },
+  {
+    label: 'Personel',
+    href: '/staff',
+    icon: <Users className="h-4 w-4" />,
+    roles: ['institution_admin', 'department_admin'],
+  },
+  {
+    label: 'Kısıtlar',
+    href: '/constraints',
+    icon: <ShieldBan className="h-4 w-4" />,
+    roles: ['institution_admin', 'department_admin'],
+  },
+  {
+    label: 'Departmanlar',
+    href: '/departments',
+    icon: <Building2 className="h-4 w-4" />,
+    roles: ['institution_admin'],
+  },
+  {
+    label: 'Unvanlar',
+    href: '/titles',
+    icon: <Tag className="h-4 w-4" />,
+    roles: ['institution_admin'],
+  },
+  {
+    label: 'Bildirimler',
+    href: '/notifications',
+    icon: <Bell className="h-4 w-4" />,
     roles: ['institution_admin', 'department_admin'],
   },
 ]

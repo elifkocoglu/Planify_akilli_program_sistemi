@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireAuth, isAuthError } from '@/lib/api/auth-helpers'
 
 // ─────────────────────────────────────────────────────────────
-// GET /api/departments — Kurumun departman listesi
+// GET /api/titles — Kurum unvan listesi
 // ─────────────────────────────────────────────────────────────
 export async function GET() {
   try {
@@ -10,37 +10,46 @@ export async function GET() {
     if (isAuthError(auth)) return auth
     const { profile, supabase } = auth
 
-    let query = supabase
-      .from('departments')
-      .select('id, name, type')
+    const { data: titles, error } = await supabase
+      .from('titles')
+      .select('id, institution_id, name, min_required_per_shift, created_at')
       .eq('institution_id', profile.institution_id)
       .order('name', { ascending: true })
 
-    // department_admin ise kendi departmanlarını filtrele
-    if (profile.role === 'department_admin') {
-      const { data: adminDepts } = await supabase
-        .from('admin_departments')
-        .select('department_id')
-        .eq('profile_id', profile.id)
-
-      const deptIds = adminDepts?.map((d) => d.department_id) ?? []
-      if (deptIds.length > 0) {
-        query = query.in('id', deptIds)
-      } else {
-        return NextResponse.json({ success: true, departments: [] })
-      }
-    }
-
-    const { data: departments, error } = await query
-
     if (error) {
       return NextResponse.json(
-        { success: false, error: `Departmanlar getirilemedi: ${error.message}` },
+        { success: false, error: `Unvanlar alınamadı: ${error.message}` },
         { status: 500 }
       )
     }
 
-    return NextResponse.json({ success: true, departments })
+    // Her unvan için personel sayısı
+    const titleIds = titles?.map((t) => t.id) ?? []
+    let staffCounts: Record<string, number> = {}
+
+    if (titleIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('title_id')
+        .in('title_id', titleIds)
+        .eq('is_active', true)
+
+      if (profiles) {
+        staffCounts = profiles.reduce((acc: Record<string, number>, p) => {
+          if (p.title_id) {
+            acc[p.title_id] = (acc[p.title_id] ?? 0) + 1
+          }
+          return acc
+        }, {})
+      }
+    }
+
+    const titlesWithCounts = (titles ?? []).map((t) => ({
+      ...t,
+      staff_count: staffCounts[t.id] ?? 0,
+    }))
+
+    return NextResponse.json({ success: true, titles: titlesWithCounts })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Bilinmeyen bir hata oluştu'
     return NextResponse.json({ success: false, error: message }, { status: 500 })
@@ -48,7 +57,7 @@ export async function GET() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// POST /api/departments — Yeni departman oluştur
+// POST /api/titles — Yeni unvan oluştur
 // ─────────────────────────────────────────────────────────────
 export async function POST(request: Request) {
   try {
@@ -57,53 +66,35 @@ export async function POST(request: Request) {
     const { profile, supabase } = auth
 
     const body = await request.json()
-    const { name, type } = body
+    const { name, minRequiredPerShift } = body
 
-    if (!name || !type) {
+    if (!name) {
       return NextResponse.json(
-        { success: false, error: 'Departman adı ve tipi zorunludur' },
+        { success: false, error: 'Unvan adı zorunludur' },
         { status: 400 }
       )
     }
 
-    if (!['duty', 'lesson'].includes(type)) {
-      return NextResponse.json(
-        { success: false, error: 'Geçersiz departman tipi. "duty" veya "lesson" olmalı' },
-        { status: 400 }
-      )
-    }
-
-    const { data: department, error: insertError } = await supabase
-      .from('departments')
+    const { data: title, error: insertError } = await supabase
+      .from('titles')
       .insert({
         institution_id: profile.institution_id,
         name,
-        type,
+        min_required_per_shift: minRequiredPerShift ?? 0,
       })
       .select()
       .single()
 
     if (insertError) {
       return NextResponse.json(
-        { success: false, error: `Departman oluşturulamadı: ${insertError.message}` },
+        { success: false, error: `Unvan oluşturulamadı: ${insertError.message}` },
         { status: 500 }
       )
     }
 
-    // Audit log
-    await supabase.from('audit_logs').insert({
-      institution_id: profile.institution_id,
-      user_id: profile.id,
-      action: 'created',
-      table_name: 'departments',
-      record_id: department.id,
-      new_value: { name, type },
-    })
-
-    return NextResponse.json({ success: true, department })
+    return NextResponse.json({ success: true, title })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Bilinmeyen bir hata oluştu'
     return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }
-
