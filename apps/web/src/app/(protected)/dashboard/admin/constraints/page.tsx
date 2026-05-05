@@ -1,0 +1,42 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { ConstraintList } from '@/components/constraints/ConstraintList'
+import { Skeleton } from '@/components/ui/skeleton'
+import type { DepartmentRecord } from '@/lib/api/types'
+
+export default function AdminConstraintsPage() {
+  const [departments, setDepartments] = useState<DepartmentRecord[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchDepts() {
+      try {
+        const res = await fetch('/api/departments')
+        const data = await res.json()
+        setDepartments(data.departments ?? [])
+      } catch {
+        // silently fail
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchDepts()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-40 bg-white/10" />
+        <Skeleton className="h-64 w-full bg-white/10" />
+      </div>
+    )
+  }
+
+  return (
+    <ConstraintList
+      basePath="/dashboard/admin"
+      departments={departments}
+    />
+  )
+}
