@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { ArrowLeft, Pencil, Plus, Trash2, CalendarDays, Clock, BarChart3 } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, CalendarDays, Clock, BarChart3 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -140,7 +140,9 @@ export default function AdminStaffDetailPage({
     )
   }
 
-  const { staff, slotStats, constraints, upcomingSlots, leaveRequests, swapRequests } = data
+  const { staff, slotStats, constraints, upcomingSlots, leaveRequests } = data
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _swapRequests = data.swapRequests
   const maxBarValue = Math.max(...(slotStats?.monthlyHistory?.map((m) => m.count) ?? [1]), 1)
 
   return (

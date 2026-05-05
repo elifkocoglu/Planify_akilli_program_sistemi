@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { ArrowLeft, ArrowRight, Check, ChevronRight } from 'lucide-react'
@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/select'
 
 import { createConstraint } from '@/lib/api/constraints'
-import { ConstraintTypeBadge, getConstraintSummary, constraintTypeConfig } from './ConstraintTypeBadge'
+import { ConstraintTypeBadge, getConstraintSummary } from './ConstraintTypeBadge'
 import type { DepartmentRecord, StaffRecord } from '@/lib/api/types'
 
 interface ConstraintFormProps {
