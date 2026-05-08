@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Calendar, Clock, Users, MoreVertical, Pencil, Trash2, Eye, Send, Archive } from 'lucide-react'
+import { Calendar, Clock, Pencil, Trash2, Eye, Send, Archive } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { ScheduleRecord } from '@/lib/api/types'

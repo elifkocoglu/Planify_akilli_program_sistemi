@@ -15,20 +15,16 @@ interface ScheduleListProps {
 
 export function ScheduleList({ schedules, basePath }: ScheduleListProps) {
   const router = useRouter()
-  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [publishId, setPublishId] = useState<string | null>(null)
 
   const handleDelete = async (id: string) => {
     if (!confirm('Bu taslak programı silmek istediğinizden emin misiniz?')) return
-    setDeletingId(id)
     try {
       await deleteSchedule(id)
       router.refresh()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Silme hatası'
       alert(message)
-    } finally {
-      setDeletingId(null)
     }
   }
 

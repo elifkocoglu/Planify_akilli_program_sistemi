@@ -6,9 +6,6 @@ import Link from 'next/link'
 import {
   CalendarRange,
   FileText,
-  Users,
-  Clock,
-  ArrowRightLeft,
   ArrowRight,
   CalendarPlus,
 } from 'lucide-react'

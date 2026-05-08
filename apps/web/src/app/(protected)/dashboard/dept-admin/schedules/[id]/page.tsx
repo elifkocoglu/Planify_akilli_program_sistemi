@@ -44,7 +44,7 @@ export default function DeptAdminScheduleDetailPage({ params }: { params: { id: 
   const [slots, setSlots] = useState<SlotRecord[]>([])
   const [staffList, setStaffList] = useState<StaffOption[]>([])
   const [loading, setLoading] = useState(true)
-  const [unresolved, setUnresolved] = useState<UnresolvedSlot[]>([])
+  const [unresolved] = useState<UnresolvedSlot[]>([])
 
   // Add slot dialog
   const [addSlotOpen, setAddSlotOpen] = useState(false)

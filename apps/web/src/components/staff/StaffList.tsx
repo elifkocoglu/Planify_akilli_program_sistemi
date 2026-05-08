@@ -289,8 +289,7 @@ export function StaffList({ basePath, onInvite, departments }: StaffListProps) {
                       </Link>
 
                       <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
+                        <AlertDialogTrigger render={<Button
                             variant="ghost"
                             size="sm"
                             className={`h-8 w-8 p-0 ${
@@ -299,13 +298,12 @@ export function StaffList({ basePath, onInvite, departments }: StaffListProps) {
                                 : 'text-emerald-400 hover:text-emerald-300'
                             }`}
                             disabled={togglingId === member.id}
-                          >
+                          />}>
                             {member.is_active ? (
                               <UserX className="h-3.5 w-3.5" />
                             ) : (
                               <UserCheck className="h-3.5 w-3.5" />
                             )}
-                          </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent className="bg-slate-900 border-white/10">
                           <AlertDialogHeader>

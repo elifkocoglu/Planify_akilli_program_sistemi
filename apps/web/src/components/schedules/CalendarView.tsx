@@ -56,7 +56,6 @@ export function CalendarView({
   isDraft,
   staffList,
   startDate,
-  endDate,
 }: CalendarViewProps) {
   const router = useRouter()
   const [weekStart, setWeekStart] = useState(() => getMonday(new Date(startDate)))

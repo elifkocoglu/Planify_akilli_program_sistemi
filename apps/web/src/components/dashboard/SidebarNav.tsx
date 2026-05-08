@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -10,29 +11,39 @@ import {
   Building2,
   Tag,
   Bell,
+  CalendarDays,
+  Palmtree,
+  ArrowRightLeft,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { UserRole } from '@/lib/auth/getRedirectPath'
+import { createClient } from '@/lib/supabase/client'
+import { useUser } from '@/lib/auth/useUser'
 
 interface NavItem {
   label: string
   href: string
   icon: React.ReactNode
   roles: UserRole[]
+  badgeKey?: 'unreadNotifications'
 }
 
 const roleBasePaths: Partial<Record<UserRole, string>> = {
   institution_admin: '/dashboard/admin',
   department_admin: '/dashboard/dept-admin',
+  staff: '/dashboard/staff',
 }
 
 const navItems: NavItem[] = [
+  // ── Shared ──
   {
     label: 'Dashboard',
     href: '/dashboard',
     icon: <LayoutDashboard className="h-4 w-4" />,
     roles: ['super_admin', 'institution_admin', 'department_admin', 'staff'],
   },
+
+  // ── Admin / Dept-Admin ──
   {
     label: 'Programlar',
     href: '/schedules',
@@ -63,11 +74,34 @@ const navItems: NavItem[] = [
     icon: <Tag className="h-4 w-4" />,
     roles: ['institution_admin'],
   },
+
+  // ── Staff ──
+  {
+    label: 'Programım',
+    href: '/schedule',
+    icon: <CalendarDays className="h-4 w-4" />,
+    roles: ['staff'],
+  },
+  {
+    label: 'İzin Taleplerim',
+    href: '/leave',
+    icon: <Palmtree className="h-4 w-4" />,
+    roles: ['staff'],
+  },
+  {
+    label: 'Takas Taleplerim',
+    href: '/swap',
+    icon: <ArrowRightLeft className="h-4 w-4" />,
+    roles: ['staff'],
+  },
+
+  // ── Notifications (all roles with dashboard) ──
   {
     label: 'Bildirimler',
     href: '/notifications',
     icon: <Bell className="h-4 w-4" />,
-    roles: ['institution_admin', 'department_admin'],
+    roles: ['institution_admin', 'department_admin', 'staff'],
+    badgeKey: 'unreadNotifications',
   },
 ]
 
@@ -78,6 +112,27 @@ interface SidebarNavProps {
 
 export function SidebarNav({ role, onNavigate }: SidebarNavProps) {
   const pathname = usePathname()
+  const { profile } = useUser()
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  // Static fetch on mount — no global state / realtime
+  useEffect(() => {
+    const fetchUnread = async () => {
+      try {
+        const supabase = createClient()
+        const { count } = await supabase
+          .from('notifications')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', profile.id)
+          .eq('is_read', false)
+
+        setUnreadCount(count || 0)
+      } catch {
+        // silent
+      }
+    }
+    fetchUnread()
+  }, [profile.id])
 
   const filteredItems = navItems.filter((item) => item.roles.includes(role))
 
@@ -90,6 +145,9 @@ export function SidebarNav({ role, onNavigate }: SidebarNavProps) {
           : `${roleBasePaths[role] ?? '/dashboard'}${item.href}`
         const isActive =
           pathname === resolvedHref || pathname.startsWith(resolvedHref + '/')
+
+        const showBadge = item.badgeKey === 'unreadNotifications' && unreadCount > 0
+
         return (
           <Link
             key={item.href}
@@ -103,7 +161,12 @@ export function SidebarNav({ role, onNavigate }: SidebarNavProps) {
             )}
           >
             {item.icon}
-            {item.label}
+            <span className="flex-1">{item.label}</span>
+            {showBadge && (
+              <span className="flex items-center justify-center min-w-[20px] h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold px-1.5">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
           </Link>
         )
       })}

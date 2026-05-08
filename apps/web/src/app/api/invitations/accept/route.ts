@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     const supabase = createClient()
     // Admin ile oluşturmak daha garantidir (kullanıcı zaten oluşturulduysa, signUp hata verir)
     
-    let createdUserId: string;
+    let createdUserId = '';
 
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: invitation.email, // Davetteki email adresine göre
@@ -90,7 +90,8 @@ export async function POST(request: Request) {
     // Başarılıysa session açık olarak devam edilecek, client side yönlendirme yapabiliriz.
     return NextResponse.json({ success: true, message: 'Kayıt başarılı.' })
 
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+  } catch (error: unknown) {
+    const err = error as Error
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 })
   }
 }

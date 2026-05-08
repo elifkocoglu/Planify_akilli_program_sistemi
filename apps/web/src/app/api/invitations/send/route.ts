@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     }
 
     // 2. Email kontrolü (profiles)
-    const { data: existingUser } = await supabase
+    await supabase
       .from('profiles')
       .select('id')
       .eq('id', email) // Not: e-posta auth.users altında saklanıyor ama şu an profiles da email varsa eşleştirebilirdik.
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     // Davet kodu üretimi
     const code = Math.random().toString(36).substring(2, 10).toUpperCase()
 
-    const { data: invitation, error: invError } = await supabaseAdmin
+    const { error: invError } = await supabaseAdmin
       .from('invitations')
       .insert({
         email,
@@ -99,7 +99,8 @@ export async function POST(request: Request) {
       magic_link: linkData.properties.action_link 
     })
 
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+  } catch (error: unknown) {
+    const err = error as Error
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 })
   }
 }

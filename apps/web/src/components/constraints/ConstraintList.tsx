@@ -227,14 +227,12 @@ export function ConstraintList({ basePath, departments }: ConstraintListProps) {
                   </TableCell>
                   <TableCell className="text-right">
                     <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-400 hover:text-red-300 h-8 w-8 p-0"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                      <AlertDialogTrigger render={<Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-400 hover:text-red-300 h-8 w-8 p-0"
+                      />}>
+                        <Trash2 className="h-3.5 w-3.5" />
                       </AlertDialogTrigger>
                       <AlertDialogContent className="bg-slate-900 border-white/10">
                         <AlertDialogHeader>

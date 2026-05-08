@@ -308,3 +308,123 @@ export interface InvitationCodeResponse extends BaseResponse {
   code?: string
   expiresAt?: string
 }
+
+// ─── Leave Request Tipleri ──────────────────────────────────
+
+/** İzin tipi */
+export type LeaveType = 'annual' | 'sick' | 'unpaid' | 'maternity' | 'administrative'
+
+/** İzin talep durumu */
+export type LeaveStatus = 'pending' | 'approved' | 'rejected'
+
+/** Veritabanındaki leave_requests kaydı */
+export interface LeaveRequestRecord {
+  id: string
+  staff_id: string
+  type: LeaveType
+  start_date: string
+  end_date: string
+  reason: string | null
+  status: LeaveStatus
+  reviewed_by: string | null
+  reviewer_note: string | null
+  created_at: string
+  profiles?: { full_name: string } | null
+  reviewer?: { full_name: string } | null
+}
+
+/** Yeni izin talebi oluşturma isteği */
+export interface CreateLeaveRequestInput {
+  type: LeaveType
+  startDate: string
+  endDate: string
+  reason?: string
+}
+
+/** Leave request liste response'u */
+export interface LeaveRequestListResponse extends BaseResponse {
+  leaveRequests?: LeaveRequestRecord[]
+}
+
+/** Leave request response'u */
+export interface LeaveRequestResponse extends BaseResponse {
+  leaveRequest?: LeaveRequestRecord
+}
+
+// ─── Swap Request Tipleri ───────────────────────────────────
+
+/** Takas talep durumu */
+export type SwapStatus =
+  | 'pending'
+  | 'approved_by_receiver'
+  | 'approved_by_admin'
+  | 'rejected'
+
+/** Veritabanındaki swap_requests kaydı */
+export interface SwapRequestRecord {
+  id: string
+  requester_id: string
+  receiver_id: string
+  requester_slot_id: string
+  receiver_slot_id: string
+  status: SwapStatus
+  reject_reason: string | null
+  created_at: string
+  requester?: { full_name: string } | null
+  receiver?: { full_name: string } | null
+  requester_slot?: SlotRecord | null
+  receiver_slot?: SlotRecord | null
+}
+
+/** Yeni takas talebi oluşturma isteği */
+export interface CreateSwapRequestInput {
+  requesterSlotId: string
+  receiverSlotId: string
+  receiverId: string
+}
+
+/** Swap request liste response'u */
+export interface SwapRequestListResponse extends BaseResponse {
+  swapRequests?: SwapRequestRecord[]
+}
+
+/** Swap request response'u */
+export interface SwapRequestResponse extends BaseResponse {
+  swapRequest?: SwapRequestRecord
+}
+
+// ─── Notification Tipleri ───────────────────────────────────
+
+/** Bildirim tipi */
+export type NotificationType =
+  | 'schedule_published'
+  | 'swap_request'
+  | 'swap_approved'
+  | 'swap_rejected'
+  | 'leave_approved'
+  | 'leave_rejected'
+  | 'shift_changed'
+  | 'leave_request'
+
+/** Veritabanındaki notifications kaydı */
+export interface NotificationRecord {
+  id: string
+  user_id: string
+  type: NotificationType
+  title: string
+  body: string | null
+  related_id: string | null
+  is_read: boolean
+  created_at: string
+}
+
+/** Notification liste response'u */
+export interface NotificationListResponse extends BaseResponse {
+  notifications?: NotificationRecord[]
+  totalCount?: number
+}
+
+/** Notification response'u */
+export interface NotificationResponse extends BaseResponse {
+  notification?: NotificationRecord
+}

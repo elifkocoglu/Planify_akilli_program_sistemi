@@ -123,7 +123,7 @@ export function StaffForm({ staff, departments, titles, basePath, canChangeRole 
             <Label className="text-slate-300">Rol</Label>
             <Select
               value={form.role}
-              onValueChange={(v) => setForm((f) => ({ ...f, role: v }))}
+              onValueChange={(v) => setForm((f) => ({ ...f, role: v as StaffRecord['role'] }))}
               disabled={!canChangeRole}
             >
               <SelectTrigger className="bg-white/5 border-white/10 text-white">

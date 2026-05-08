@@ -32,7 +32,7 @@ export function PublishButton({ scheduleId, autoOpen, onClose, onSuccess }: Publ
     setLoading(true)
     setError(null)
     try {
-      const result = await publishSchedule(scheduleId)
+      await publishSchedule(scheduleId)
       setOpen(false)
       onSuccess?.()
       router.refresh()

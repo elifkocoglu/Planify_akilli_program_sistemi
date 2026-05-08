@@ -17,21 +17,6 @@ export default function NewSchedulePage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function loadDepartments() {
-      try {
-        const res = await fetch('/api/schedules')
-        // We don't have a separate departments API yet,
-        // so we'll fetch them via a simple approach
-        // For now, departments will be fetched from a basic endpoint
-        // or we can extract unique departments from existing data
-        setDepartments([])
-      } catch {
-        setDepartments([])
-      } finally {
-        setLoading(false)
-      }
-    }
-
     // Fetch departments directly from Supabase through a lightweight API call
     async function fetchDepartments() {
       try {

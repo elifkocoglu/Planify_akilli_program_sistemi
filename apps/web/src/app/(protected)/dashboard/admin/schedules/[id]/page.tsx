@@ -6,8 +6,6 @@ import Link from 'next/link'
 import {
   ArrowLeft,
   Calendar,
-  Zap,
-  Send,
   Plus,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -46,7 +44,7 @@ export default function ScheduleDetailPage({ params }: { params: { id: string } 
   const [slots, setSlots] = useState<SlotRecord[]>([])
   const [staffList, setStaffList] = useState<StaffOption[]>([])
   const [loading, setLoading] = useState(true)
-  const [unresolved, setUnresolved] = useState<UnresolvedSlot[]>([])
+  const [unresolved] = useState<UnresolvedSlot[]>([])
 
   // Add slot dialog
   const [addSlotOpen, setAddSlotOpen] = useState(false)

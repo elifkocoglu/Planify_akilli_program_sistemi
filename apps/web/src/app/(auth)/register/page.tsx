@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   Card,
@@ -28,7 +28,6 @@ function getErrorMessage(error?: string | null): string | null {
 }
 
 export default function RegisterPage() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   
   const paramError = searchParams.get('error')
@@ -49,7 +48,7 @@ export default function RegisterPage() {
           const res = await fetch(`/api/invitations/verify?code=${inviteCode}`)
           const data = await res.json()
           setInviteData(data)
-        } catch (err) {
+        } catch {
           setInviteData({ valid: false, reason: 'Kod doğrulanamadı' })
         } finally {
           setVerifying(false)
@@ -103,7 +102,7 @@ export default function RegisterPage() {
       } else {
         setClientError(data.error || 'Kayıt sırasında hata oluştu.')
       }
-    } catch (err) {
+    } catch {
       setClientError('Bir hata oluştu.')
     }
   }

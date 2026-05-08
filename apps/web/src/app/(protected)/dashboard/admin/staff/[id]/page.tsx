@@ -250,14 +250,12 @@ export default function AdminStaffDetailPage({
                     </p>
                   </div>
                   <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-400 hover:text-red-300 h-7 w-7 p-0 flex-shrink-0"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                    <AlertDialogTrigger render={<Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-400 hover:text-red-300 h-7 w-7 p-0 flex-shrink-0"
+                    />}>
+                      <Trash2 className="h-3.5 w-3.5" />
                     </AlertDialogTrigger>
                     <AlertDialogContent className="bg-slate-900 border-white/10">
                       <AlertDialogHeader>

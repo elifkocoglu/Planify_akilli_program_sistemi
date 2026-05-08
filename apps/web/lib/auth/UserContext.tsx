@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext } from 'react'
+import { createContext } from 'react'
 import type { User } from '@supabase/supabase-js'
 import type { UserRole } from './getRedirectPath'
 

@@ -197,10 +197,8 @@ export default function AdminDepartmentsPage() {
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
                         <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300 h-8 w-8 p-0">
+                          <AlertDialogTrigger render={<Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300 h-8 w-8 p-0" />}>
                               <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent className="bg-slate-900 border-white/10">
                             <AlertDialogHeader>
@@ -245,7 +243,7 @@ export default function AdminDepartmentsPage() {
             </div>
             <div className="space-y-2">
               <Label className="text-slate-300">Tip</Label>
-              <Select value={formType} onValueChange={setFormType}>
+              <Select value={formType} onValueChange={(val) => val && setFormType(val)}>
                 <SelectTrigger className="bg-white/5 border-white/10 text-white">
                   <SelectValue />
                 </SelectTrigger>
