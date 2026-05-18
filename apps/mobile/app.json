@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "Planify",
+    "slug": "planify-mobile",
+    "version": "1.0.0",
+    "scheme": "planify",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "platforms": ["ios", "android"],
+    "icon": "./assets/images/icon.png",
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F172A"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#3B82F6"
+        }
+      ]
+    ],
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#0F172A"
+      },
+      "package": "com.planify.mobile"
+    },
+    "ios": {
+      "bundleIdentifier": "com.planify.mobile",
+      "supportsTablet": false
+    },
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
