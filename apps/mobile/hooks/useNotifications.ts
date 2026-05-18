@@ -18,8 +18,9 @@ export function useUnreadCount() {
       .then(({ count: c }) => setCount(c ?? 0))
 
     // Realtime dinle
+    const channelName = `notifications-count-${user.id}-${Date.now()}`
     const channel = supabase
-      .channel('notifications-count')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {

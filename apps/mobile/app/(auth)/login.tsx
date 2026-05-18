@@ -45,8 +45,10 @@ export default function LoginScreen() {
         } else {
           setError('Giriş yapılamadı. Lütfen tekrar deneyin.')
         }
+      } else {
+        // Başarılı giriş sonrası açıkça sekmelere yönlendir
+        router.replace('/(tabs)')
       }
-      // Başarılıysa AuthContext güncellenir, index.tsx yönlendirmeyi halleder
     } catch {
       setError('Bir hata oluştu. Lütfen tekrar deneyin.')
     } finally {
