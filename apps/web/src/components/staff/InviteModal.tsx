@@ -137,8 +137,8 @@ export function InviteModal({ open, onOpenChange, departments }: InviteModalProp
           <DialogTitle className="text-white">Personel Davet Et</DialogTitle>
         </DialogHeader>
 
-        <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="bg-white/5 border-white/10 w-full">
+        <Tabs value={tab} onValueChange={setTab} className="flex flex-col">
+          <TabsList className="bg-white/5 border-white/10 w-full mb-4">
             <TabsTrigger
               value="email"
               className="flex-1 data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-400"
@@ -156,7 +156,7 @@ export function InviteModal({ open, onOpenChange, departments }: InviteModalProp
           </TabsList>
 
           {/* Email Tab */}
-          <TabsContent value="email" className="space-y-4 mt-4">
+          <TabsContent value="email" className="space-y-4">
             <div className="space-y-2">
               <Label className="text-slate-300">E-posta Adresi</Label>
               <Input
@@ -190,7 +190,7 @@ export function InviteModal({ open, onOpenChange, departments }: InviteModalProp
                 </SelectTrigger>
                 <SelectContent className="bg-slate-900 border-white/10">
                   {departments.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>
+                    <SelectItem key={d.id} value={d.id} label={d.name}>
                       {d.name}
                     </SelectItem>
                   ))}
@@ -222,7 +222,7 @@ export function InviteModal({ open, onOpenChange, departments }: InviteModalProp
           </TabsContent>
 
           {/* Code Tab */}
-          <TabsContent value="code" className="space-y-4 mt-4">
+          <TabsContent value="code" className="space-y-4">
             {generatedCode ? (
               <div className="space-y-4">
                 <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
@@ -273,7 +273,7 @@ export function InviteModal({ open, onOpenChange, departments }: InviteModalProp
                     </SelectTrigger>
                     <SelectContent className="bg-slate-900 border-white/10">
                       {departments.map((d) => (
-                        <SelectItem key={d.id} value={d.id}>
+                        <SelectItem key={d.id} value={d.id} label={d.name}>
                           {d.name}
                         </SelectItem>
                       ))}

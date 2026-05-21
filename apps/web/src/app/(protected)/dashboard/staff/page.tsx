@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { TodayShiftCard } from '@/components/staff/TodayShiftCard'
 import { WeekSummaryCard } from '@/components/staff/WeekSummaryCard'
 import { UpcomingShiftsList } from '@/components/staff/UpcomingShiftsList'
+import { JoinInstitutionBanner } from '@/components/staff/JoinInstitutionBanner'
 import Link from 'next/link'
 import { Bell, ArrowRight } from 'lucide-react'
 import type { NotificationRecord } from '@/lib/api/types'
@@ -188,6 +189,11 @@ export default async function StaffDashboardPage() {
           Program ve görevlerinizi buradan takip edebilirsiniz.
         </p>
       </div>
+
+      {/* Manual Invite Code Banner for Staff without Institution */}
+      {profile.institution_id === null && (
+        <JoinInstitutionBanner userId={user.id} />
+      )}
 
       {/* Today Shift Card */}
       <TodayShiftCard todaySlot={todaySlot} nextSlotDate={nextSlotDate} />

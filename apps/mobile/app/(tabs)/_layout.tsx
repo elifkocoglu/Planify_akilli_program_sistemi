@@ -16,7 +16,7 @@ function TabBarIcon({
 }) {
   return (
     <Ionicons
-      name={focused ? name : (`${name}-outline` as keyof typeof Ionicons.glyphMap)}
+      name={focused ? (name as any) : (`${String(name)}-outline` as any)}
       size={24}
       color={color}
     />

@@ -252,7 +252,7 @@ export function ConstraintForm({ departments, staffList, basePath }: ConstraintF
                   </SelectTrigger>
                   <SelectContent className="bg-slate-900 border-white/10">
                     {departments.map((d) => (
-                      <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                      <SelectItem key={d.id} value={d.id} label={d.name}>{d.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -268,7 +268,7 @@ export function ConstraintForm({ departments, staffList, basePath }: ConstraintF
                   </SelectTrigger>
                   <SelectContent className="bg-slate-900 border-white/10 max-h-60">
                     {staffList.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>{s.full_name}</SelectItem>
+                      <SelectItem key={s.id} value={s.id} label={s.full_name}>{s.full_name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

@@ -4,9 +4,13 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 
 export async function POST(request: Request) {
   try {
-    const { code, full_name, password } = await request.json()
+    const { code, full_name, password, userId } = await request.json()
 
-    if (!code || !full_name || !password) {
+    if (!code) {
+      return NextResponse.json({ success: false, error: 'Davet kodu zorunludur' }, { status: 400 })
+    }
+
+    if (!userId && (!full_name || !password)) {
       return NextResponse.json({ success: false, error: 'Eksik parametreler' }, { status: 400 })
     }
 
@@ -34,40 +38,52 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Bu davet kodu geçersiz veya süresi dolmuş' }, { status: 400 })
     }
 
-    // 2. signUp ile kullanıcı oluştur
+    // 2. signUp ile kullanıcı oluştur veya mevcut kullanıcıyı kullan
     const supabase = createClient()
-    // Admin ile oluşturmak daha garantidir (kullanıcı zaten oluşturulduysa, signUp hata verir)
     
-    let createdUserId = '';
+    let createdUserId = userId;
 
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: invitation.email, // Davetteki email adresine göre
-      password,
-      options: {
-        data: {
-          full_name,
-          role: invitation.role,
+    if (!createdUserId) {
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: invitation.email, // Davetteki email adresine göre
+        password,
+        options: {
+          data: {
+            full_name,
+            role: invitation.role,
+          }
         }
+      })
+
+      if (authError || !authData.user) {
+        return NextResponse.json({ success: false, error: authError?.message || 'Bilinmeyen auth hatası' }, { status: 500 })
       }
-    })
 
-    if (authError || !authData.user) {
-      return NextResponse.json({ success: false, error: authError?.message || 'Bilinmeyen auth hatası' }, { status: 500 })
+      createdUserId = authData.user.id
+    } else {
+      // Güvenlik: userId gerçekten login olan kişiye mi ait?
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      if (!currentUser || currentUser.id !== userId) {
+        return NextResponse.json({ success: false, error: 'Yetkisiz işlem' }, { status: 401 })
+      }
     }
-
-    createdUserId = authData.user.id
 
     // signUp trigger'ı profile oluşturmuş olabilir ya da hemen oluşturacaktır.
     // 3. profiles tablosunu güncelle 
+    const updateData: any = {
+      institution_id: invitation.institution_id,
+      department_id: invitation.department_id,
+      role: invitation.role,
+      is_active: true
+    }
+    
+    if (full_name) {
+      updateData.full_name = full_name
+    }
+
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
-      .update({
-        institution_id: invitation.institution_id,
-        department_id: invitation.department_id,
-        role: invitation.role,
-        full_name: full_name, // trigger overwrite'a karşı
-        is_active: true
-      })
+      .update(updateData)
       .eq('id', createdUserId)
 
     if (profileError) {
