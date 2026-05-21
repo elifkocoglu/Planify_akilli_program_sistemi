@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react'
+import React, { useRef, useEffect, useState, useCallback } from 'react'
 import {
   View,
   Text,
@@ -10,7 +10,10 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
+import { useRouter } from 'expo-router'
 import { useSchedule } from '@/hooks/useSchedule'
+import { useScheduleRealtime } from '@/hooks/useRealtimeUpdates'
+import type { ScheduleSlot } from '@/hooks/useSchedule'
 
 // ─────────────────────────────────────────────────────────────
 // Constants
@@ -21,9 +24,41 @@ const TURKISH_MONTHS = [
   'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık',
 ]
 
+const TURKISH_WEEKDAYS = [
+  'Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi',
+]
+
 const DAY_HEADERS = ['Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct', 'Pz']
 
 const CELL_SIZE = Dimensions.get('window').width / 7
+
+// ─────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────
+
+function formatTime(t: string | null): string {
+  if (!t) return '--:--'
+  return t.slice(0, 5)
+}
+
+function formatTurkishFull(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00')
+  const weekday = TURKISH_WEEKDAYS[d.getDay()]
+  const day = d.getDate()
+  const month = TURKISH_MONTHS[d.getMonth()]
+  const year = d.getFullYear()
+  return `${weekday}, ${day} ${month} ${year}`
+}
+
+/** Calculate total hours from an array of slots */
+function calcTotalHours(slots: ScheduleSlot[]): number {
+  return slots.reduce((acc, s) => {
+    const [sh, sm] = s.start_time.split(':').map(Number)
+    const [eh, em] = s.end_time.split(':').map(Number)
+    const minutes = (eh * 60 + em) - (sh * 60 + sm)
+    return acc + Math.max(0, minutes)
+  }, 0) / 60
+}
 
 // ─────────────────────────────────────────────────────────────
 // Skeleton helpers
@@ -44,51 +79,46 @@ function usePulse() {
   return opacity
 }
 
-function SkeletonBlock({ width, height, className }: { width?: number | string; height: number; className?: string }) {
+function SkeletonBlock({ width, height }: { width?: number | string; height: number }) {
   const opacity = usePulse()
   return (
     <Animated.View
-      style={{ opacity, width: width as any, height, borderRadius: 8 }}
-      className={`bg-slate-700 ${className ?? ''}`}
+      style={{ opacity, width: width as any, height, borderRadius: 8, backgroundColor: '#334155' }}
     />
   )
 }
 
 function CalendarSkeleton() {
-  const opacity = usePulse()
-  const cellH = CELL_SIZE * 0.85
-
+  const cellH = CELL_SIZE * 0.82
   return (
     <View className="px-4">
-      {/* Nav skeleton */}
-      <View className="flex-row items-center justify-between py-4">
-        <SkeletonBlock width={36} height={36} />
-        <SkeletonBlock width={140} height={28} />
-        <SkeletonBlock width={36} height={36} />
-      </View>
-
-      {/* Day headers skeleton */}
-      <View className="flex-row mb-2">
+      <View className="flex-row mb-2 mt-1">
         {DAY_HEADERS.map((d) => (
           <View key={d} style={{ width: CELL_SIZE }} className="items-center">
-            <SkeletonBlock width={24} height={16} />
+            <SkeletonBlock width={20} height={14} />
           </View>
         ))}
       </View>
-
-      {/* 5 rows of 7 cells */}
       {[0, 1, 2, 3, 4].map((row) => (
-        <Animated.View key={row} style={{ opacity }} className="flex-row mb-1">
+        <View key={row} className="flex-row mb-1">
           {[0, 1, 2, 3, 4, 5, 6].map((col) => (
             <View key={col} style={{ width: CELL_SIZE }} className="items-center py-0.5">
               <Animated.View
-                style={{ width: cellH, height: cellH, borderRadius: cellH / 2 }}
-                className="bg-slate-700"
+                style={{
+                  width: cellH, height: cellH,
+                  borderRadius: cellH / 2, backgroundColor: '#334155',
+                }}
               />
             </View>
           ))}
-        </Animated.View>
+        </View>
       ))}
+      {/* Detail skeleton */}
+      <View className="mt-4 gap-3">
+        <SkeletonBlock width="50%" height={20} />
+        <SkeletonBlock width="100%" height={100} />
+        <SkeletonBlock width="100%" height={80} />
+      </View>
     </View>
   )
 }
@@ -106,28 +136,25 @@ interface DayCellProps {
   onPress: () => void
 }
 
-function DayCell({ day, dateStr, isToday, isSelected, hasSlot, onPress }: DayCellProps) {
+function DayCell({ day, isToday, isSelected, hasSlot, onPress }: DayCellProps) {
   const cellH = CELL_SIZE * 0.82
 
   if (day === null) {
-    // Empty cell — invisible, non-interactive
     return <View style={{ width: CELL_SIZE, height: CELL_SIZE * 0.95 }} />
   }
 
-  // Determine circle style
   let circleBg = 'transparent'
-  let textColor = '#1e293b'  // slate-900 — normal day
+  let textColor = '#f8fafc'  // slate-50 — readable on dark bg
 
   if (isToday) {
-    circleBg = '#3B82F6'   // bg-blue-500
+    circleBg = '#3B82F6'
     textColor = '#ffffff'
   } else if (isSelected) {
-    circleBg = '#DBEAFE'   // bg-blue-100
-    textColor = '#2563EB'  // text-blue-600
+    circleBg = '#1E3A8A'  // dark blue — visible on dark bg
+    textColor = '#93C5FD' // light blue text
   }
 
-  // Dot color
-  const dotColor = isToday ? '#ffffff' : '#3B82F6'
+  const dotColor = isToday ? '#ffffff' : '#60A5FA'
 
   return (
     <TouchableOpacity
@@ -140,27 +167,21 @@ function DayCell({ day, dateStr, isToday, isSelected, hasSlot, onPress }: DayCel
     >
       <View
         style={{
-          width: cellH,
-          height: cellH,
+          width: cellH, height: cellH,
           borderRadius: cellH / 2,
           backgroundColor: circleBg,
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <Text
-          style={{ color: textColor, fontWeight: isToday || isSelected ? '700' : '400', fontSize: 14 }}
-        >
+        <Text style={{ color: textColor, fontWeight: isToday || isSelected ? '700' : '400', fontSize: 14 }}>
           {day}
         </Text>
         {hasSlot && (
           <View
             style={{
-              position: 'absolute',
-              bottom: 3,
-              width: 5,
-              height: 5,
-              borderRadius: 3,
+              position: 'absolute', bottom: 3,
+              width: 5, height: 5, borderRadius: 3,
               backgroundColor: dotColor,
             }}
           />
@@ -176,7 +197,7 @@ function DayCell({ day, dateStr, isToday, isSelected, hasSlot, onPress }: DayCel
 
 interface CalendarGridProps {
   year: number
-  month: number   // 0-indexed
+  month: number
   todayStr: string
   selectedDate: string
   slotDates: Set<string>
@@ -184,27 +205,19 @@ interface CalendarGridProps {
 }
 
 function CalendarGrid({ year, month, todayStr, selectedDate, slotDates, onDayPress }: CalendarGridProps) {
-  // First day of the month (0=Sun, 1=Mon ...)
   const firstDOW = new Date(year, month, 1).getDay()
-  // Convert Sunday-based to Monday-based offset
   const offset = firstDOW === 0 ? 6 : firstDOW - 1
-
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const monthStr = String(month + 1).padStart(2, '0')
 
-  // Build cells array: nulls for empty prefix, then 1..daysInMonth
   const cells: (number | null)[] = [
     ...Array(offset).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ]
-
-  // Pad to full rows (multiple of 7)
   while (cells.length % 7 !== 0) cells.push(null)
 
   const rows: (number | null)[][] = []
-  for (let i = 0; i < cells.length; i += 7) {
-    rows.push(cells.slice(i, i + 7))
-  }
+  for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7))
 
   return (
     <View>
@@ -217,14 +230,12 @@ function CalendarGrid({ year, month, todayStr, selectedDate, slotDates, onDayPre
         ))}
       </View>
 
-      {/* Rows */}
       {rows.map((row, rowIdx) => (
         <View key={rowIdx} className="flex-row">
           {row.map((day, colIdx) => {
             const dateStr = day !== null
               ? `${year}-${monthStr}-${String(day).padStart(2, '0')}`
               : null
-
             return (
               <DayCell
                 key={`${rowIdx}-${colIdx}`}
@@ -244,99 +255,211 @@ function CalendarGrid({ year, month, todayStr, selectedDate, slotDates, onDayPre
 }
 
 // ─────────────────────────────────────────────────────────────
-// Selected Day Detail Card
+// Status Badge
 // ─────────────────────────────────────────────────────────────
 
-function formatTurkishFull(dateStr: string) {
-  const d = new Date(dateStr + 'T00:00:00')
-  return d.toLocaleDateString('tr-TR', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  })
-}
+function StatusBadge({ status }: { status: string }) {
+  const config: Record<string, { label: string; bg: string; text: string }> = {
+    active:    { label: 'Aktif',        bg: '#14532D', text: '#86EFAC' },
+    swapped:   { label: 'Takas Edildi', bg: '#1E3A8A', text: '#93C5FD' },
+    cancelled: { label: 'İptal',        bg: '#7F1D1D', text: '#FCA5A5' },
+  }
+  const c = config[status] ?? { label: status, bg: '#334155', text: '#94A3B8' }
 
-function formatTime(t: string | null) {
-  if (!t) return '--:--'
-  return t.slice(0, 5)
-}
-
-interface SlotDetail {
-  id: string
-  date: string
-  start_time: string
-  end_time: string
-  department_name: string | null
-  schedule_title: string | null
-  schedule_type: string | null
-  notes: string | null
-}
-
-function DayDetailCard({ date, slot }: { date: string; slot: SlotDetail | null }) {
   return (
-    <View className="mx-4 mb-4 bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
-      {/* Header */}
-      <View className="bg-slate-700/60 px-4 py-2.5">
-        <Text className="text-white font-bold text-sm capitalize">
-          {formatTurkishFull(date)}
-        </Text>
+    <View style={{ backgroundColor: c.bg, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
+      <Text style={{ color: c.text, fontSize: 12, fontWeight: '600' }}>{c.label}</Text>
+    </View>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+// Slot Card (Bölüm 2)
+// ─────────────────────────────────────────────────────────────
+
+interface SlotCardProps {
+  slot: ScheduleSlot
+  todayStr: string
+  onSwapPress: (slotId: string) => void
+}
+
+function SlotCard({ slot, todayStr, onSwapPress }: SlotCardProps) {
+  const canSwap = slot.status === 'active' && slot.date >= todayStr
+
+  return (
+    <View
+      className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden"
+      style={{ borderLeftWidth: 4, borderLeftColor: '#22C55E' }}
+    >
+      {/* Top section: time + department */}
+      <View className="flex-row items-center px-4 py-4 gap-4">
+        {/* Time block */}
+        <View className="items-start">
+          <Text className="text-white font-bold text-3xl leading-none">
+            {formatTime(slot.start_time)}
+          </Text>
+          <Text className="text-slate-400 text-base mt-0.5">
+            — {formatTime(slot.end_time)}
+          </Text>
+        </View>
+
+        {/* Divider */}
+        <View className="w-px h-12 bg-slate-700" />
+
+        {/* Info */}
+        <View className="flex-1">
+          {slot.department_name ? (
+            <Text className="text-slate-200 font-semibold text-sm">
+              {slot.department_name}
+            </Text>
+          ) : (
+            <Text className="text-slate-500 text-sm">Departman belirtilmemiş</Text>
+          )}
+          {slot.schedule_title && (
+            <Text className="text-slate-400 text-xs mt-1">
+              {slot.schedule_title}
+            </Text>
+          )}
+          {slot.notes && (
+            <Text className="text-slate-500 text-xs mt-1 leading-4" numberOfLines={2}>
+              {slot.notes}
+            </Text>
+          )}
+        </View>
       </View>
 
-      {slot ? (
-        <View className="px-4 py-4 gap-3">
-          {/* Time */}
-          <View className="flex-row items-center gap-2">
-            <View className="bg-blue-700 rounded-xl w-10 h-10 items-center justify-center">
-              <Ionicons name="time" size={18} color="#93C5FD" />
-            </View>
-            <View>
-              <Text className="text-slate-400 text-xs">Nöbet Saatleri</Text>
-              <Text className="text-white font-bold text-lg">
-                {formatTime(slot.start_time)} – {formatTime(slot.end_time)}
-              </Text>
-            </View>
-          </View>
+      {/* Divider line */}
+      <View className="h-px bg-slate-700 mx-4" />
 
-          {/* Department */}
-          {slot.department_name && (
-            <View className="flex-row items-center gap-2">
-              <View className="bg-purple-900/60 rounded-xl w-10 h-10 items-center justify-center">
-                <Ionicons name="business" size={18} color="#C084FC" />
-              </View>
-              <View>
-                <Text className="text-slate-400 text-xs">Departman</Text>
-                <Text className="text-white font-semibold">{slot.department_name}</Text>
-              </View>
-            </View>
-          )}
+      {/* Bottom section: badge + swap button */}
+      <View className="flex-row items-center justify-between px-4 py-3">
+        <StatusBadge status={slot.status} />
 
-          {/* Schedule title */}
-          {slot.schedule_title && (
-            <View className="flex-row items-center gap-2">
-              <View className="bg-emerald-900/60 rounded-xl w-10 h-10 items-center justify-center">
-                <Ionicons name="document-text" size={18} color="#34D399" />
-              </View>
-              <View>
-                <Text className="text-slate-400 text-xs">Program</Text>
-                <Text className="text-white font-semibold">{slot.schedule_title}</Text>
-              </View>
-            </View>
-          )}
+        {canSwap && (
+          <TouchableOpacity
+            onPress={() => onSwapPress(slot.id)}
+            className="flex-row items-center gap-1.5 bg-blue-700 rounded-xl px-3 py-2"
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Takas talebi oluştur"
+          >
+            <Ionicons name="swap-horizontal" size={14} color="#BFDBFE" />
+            <Text className="text-blue-100 text-xs font-semibold">Takas Talebi</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  )
+}
 
-          {/* Notes */}
-          {slot.notes && (
-            <View className="bg-slate-700/50 rounded-xl px-3 py-2.5 mt-1">
-              <Text className="text-slate-400 text-xs mb-1">Notlar</Text>
-              <Text className="text-slate-300 text-sm leading-5">{slot.notes}</Text>
-            </View>
-          )}
-        </View>
-      ) : (
-        /* No shift on selected day */
-        <View className="px-4 py-6 items-center gap-2">
-          <Ionicons name="moon-outline" size={28} color="#475569" />
-          <Text className="text-slate-500 text-sm">Bu gün için nöbet yok</Text>
-        </View>
+// ─────────────────────────────────────────────────────────────
+// Empty Day Card
+// ─────────────────────────────────────────────────────────────
+
+function EmptyDayCard({ dateStr, todayStr }: { dateStr: string; todayStr: string }) {
+  const isPast = dateStr < todayStr
+  return (
+    <View className="bg-slate-800 border border-slate-700 rounded-2xl px-4 py-6 items-center gap-2">
+      <Ionicons name="calendar-outline" size={32} color="#475569" />
+      <Text className="text-slate-400 text-sm font-medium">Bu gün nöbet yok</Text>
+      {isPast && (
+        <Text className="text-slate-600 text-xs">Geçmiş tarihe ait kayıt yok</Text>
       )}
     </View>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+// Monthly Summary (Bölüm 3)
+// ─────────────────────────────────────────────────────────────
+
+interface MonthlySummaryProps {
+  slots: ScheduleSlot[]
+  monthName: string
+}
+
+function MonthlySummary({ slots, monthName }: MonthlySummaryProps) {
+  const totalHours = calcTotalHours(slots)
+  const activeCount = slots.filter((s) => s.status === 'active').length
+
+  const items = [
+    { label: 'Toplam Nöbet', value: String(slots.length), color: '#3B82F6' },
+    {
+      label: 'Toplam Saat',
+      value: `${Math.round(totalHours)} saat`,
+      color: '#10B981',
+    },
+    { label: 'Aktif Nöbet', value: String(activeCount), color: '#F59E0B' },
+  ]
+
+  return (
+    <View className="px-4 mb-4">
+      <Text className="text-white font-bold text-base mb-3">
+        {monthName} Özeti
+      </Text>
+      <View className="flex-row gap-3">
+        {items.map((item) => (
+          <View
+            key={item.label}
+            className="flex-1 bg-white rounded-xl items-center py-3 px-1"
+            style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 2 }}
+          >
+            <Text style={{ color: item.color, fontSize: 22, fontWeight: '800' }}>
+              {item.value}
+            </Text>
+            <Text className="text-slate-500 text-xs text-center mt-0.5 leading-4">
+              {item.label}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+// Toast Notification
+// ─────────────────────────────────────────────────────────────
+
+interface ToastProps {
+  visible: boolean
+  message: string
+  translateY: Animated.Value
+  opacity: Animated.Value
+}
+
+function Toast({ visible, message, translateY, opacity }: ToastProps) {
+  if (!visible) return null
+  return (
+    <Animated.View
+      style={{
+        position: 'absolute',
+        top: 16,
+        alignSelf: 'center',
+        transform: [{ translateY }],
+        opacity,
+        zIndex: 100,
+        backgroundColor: '#1E293B',
+        borderWidth: 1,
+        borderColor: '#3B82F6',
+        borderRadius: 24,
+        paddingHorizontal: 18,
+        paddingVertical: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
+      }}
+    >
+      <Ionicons name="checkmark-circle" size={16} color="#3B82F6" />
+      <Text style={{ color: '#CBD5E1', fontSize: 13, fontWeight: '600' }}>
+        {message}
+      </Text>
+    </Animated.View>
   )
 }
 
@@ -345,30 +468,54 @@ function DayDetailCard({ date, slot }: { date: string; slot: SlotDetail | null }
 // ─────────────────────────────────────────────────────────────
 
 export default function ScheduleScreen() {
+  const router = useRouter()
   const {
     selectedDate,
     setSelectedDate,
     selectedMonth,
+    slots,
     slotDates,
     selectedSlot,
     loading,
     error,
     prevMonth,
     nextMonth,
+    goToToday,
     refresh,
     todayStr,
   } = useSchedule()
 
   const [refreshing, setRefreshing] = useState(false)
 
-  async function onRefresh() {
+  // Realtime updates with toast
+  const { toastVisible, toastMessage, toastTranslateY, toastOpacity } =
+    useScheduleRealtime(refresh)
+
+  const today = new Date()
+  const isCurrentMonth =
+    selectedMonth.year === today.getFullYear() &&
+    selectedMonth.month === today.getMonth()
+
+  const onRefresh = useCallback(async () => {
     setRefreshing(true)
     await refresh()
     setRefreshing(false)
+  }, [refresh])
+
+  function handleSwapPress(slotId: string) {
+    router.push(`/(tabs)/requests?tab=swap&mySlotId=${slotId}` as any)
   }
 
   return (
     <SafeAreaView className="flex-1 bg-slate-900" edges={['top']}>
+      {/* Toast overlay */}
+      <Toast
+        visible={toastVisible}
+        message={toastMessage}
+        translateY={toastTranslateY}
+        opacity={toastOpacity}
+      />
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -431,27 +578,82 @@ export default function ScheduleScreen() {
         {loading && !refreshing ? (
           <CalendarSkeleton />
         ) : !error ? (
-          <View className="px-2 mb-4">
-            <CalendarGrid
-              year={selectedMonth.year}
-              month={selectedMonth.month}
-              todayStr={todayStr}
-              selectedDate={selectedDate}
-              slotDates={slotDates}
-              onDayPress={setSelectedDate}
-            />
-          </View>
+          <>
+            {/* Calendar Grid */}
+            <View className="px-2 mb-3">
+              <CalendarGrid
+                year={selectedMonth.year}
+                month={selectedMonth.month}
+                todayStr={todayStr}
+                selectedDate={selectedDate}
+                slotDates={slotDates}
+                onDayPress={setSelectedDate}
+              />
+            </View>
+
+            {/* ── SELECTED DAY HEADER ── */}
+            <View className="px-4 mb-3">
+              <Text className="text-slate-300 text-sm font-semibold capitalize">
+                {formatTurkishFull(selectedDate)}
+              </Text>
+            </View>
+
+            {/* ── SLOT CARD ── */}
+            <View className="px-4 mb-5">
+              {selectedSlot ? (
+                <SlotCard
+                  slot={selectedSlot}
+                  todayStr={todayStr}
+                  onSwapPress={handleSwapPress}
+                />
+              ) : (
+                <EmptyDayCard dateStr={selectedDate} todayStr={todayStr} />
+              )}
+            </View>
+
+            {/* ── MONTHLY SUMMARY ── */}
+            {!loading && (
+              <MonthlySummary
+                slots={slots}
+                monthName={TURKISH_MONTHS[selectedMonth.month]}
+              />
+            )}
+          </>
         ) : null}
 
-        {/* ── SELECTED DAY DETAIL ── */}
-        {!loading && !error && (
-          <DayDetailCard date={selectedDate} slot={selectedSlot} />
-        )}
-
         {/* Bottom padding */}
-        <View className="h-6" />
+        <View className="h-24" />
       </ScrollView>
+
+      {/* ── FLOATING "BUGÜN" BUTTON ── */}
+      {!isCurrentMonth && (
+        <TouchableOpacity
+          onPress={goToToday}
+          style={{
+            position: 'absolute',
+            bottom: 16,
+            right: 16,
+            backgroundColor: '#3B82F6',
+            borderRadius: 24,
+            paddingHorizontal: 18,
+            paddingVertical: 12,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: 8,
+          }}
+          activeOpacity={0.85}
+          accessibilityLabel="Bugüne git"
+          accessibilityRole="button"
+        >
+          <Ionicons name="today" size={18} color="#fff" />
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Bugün</Text>
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   )
 }
-

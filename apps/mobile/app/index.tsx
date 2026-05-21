@@ -16,7 +16,7 @@ export default function IndexScreen() {
     }
 
     if (profile?.role === 'staff') {
-      router.replace('/(tabs)/')
+      router.replace('/(tabs)' as any)
       return
     }
   }, [loading, session, profile])

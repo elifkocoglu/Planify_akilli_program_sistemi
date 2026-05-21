@@ -130,6 +130,13 @@ export function useSchedule() {
   // ── Selected slot ─────────────────────────────────────────
   const selectedSlot = slots.find((s) => s.date === selectedDate) ?? null
 
+  // ── Go to today ───────────────────────────────────────────
+  function goToToday() {
+    const now = new Date()
+    setSelectedDate(now.toISOString().split('T')[0])
+    setSelectedMonth({ year: now.getFullYear(), month: now.getMonth() })
+  }
+
   return {
     // State
     selectedDate,
@@ -143,6 +150,7 @@ export function useSchedule() {
     // Actions
     prevMonth,
     nextMonth,
+    goToToday,
     refresh: fetchSlots,
     // Util
     todayStr,
