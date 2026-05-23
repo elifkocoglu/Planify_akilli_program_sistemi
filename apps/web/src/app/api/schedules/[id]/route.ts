@@ -201,14 +201,20 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
       )
     }
 
-    // Sadece draft silinebilir
-    if (existing.status !== 'draft') {
+    // 3. Önce schedule_slots'ları sil
+    const { count: slotCount, error: slotsDeleteError } = await supabase
+      .from('schedule_slots')
+      .delete({ count: 'exact' })
+      .eq('schedule_id', id)
+
+    if (slotsDeleteError) {
       return NextResponse.json(
-        { success: false, error: 'Sadece taslak programlar silinebilir' },
-        { status: 400 }
+        { success: false, error: `Slotlar silinemedi: ${slotsDeleteError.message}` },
+        { status: 500 }
       )
     }
 
+    // 4. Sonra schedule'ı sil
     const { error: deleteError } = await supabase
       .from('schedules')
       .delete()
@@ -221,14 +227,36 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
       )
     }
 
-    // Audit log
+    // 5. Eğer status published ise: Departmandaki staff'e bildirim gönder
+    if (existing.status === 'published') {
+      const { data: staffList } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('department_id', existing.department_id)
+        .eq('role', 'staff')
+        .eq('is_active', true)
+
+      if (staffList && staffList.length > 0) {
+        const notifications = staffList.map(staff => ({
+          user_id: staff.id,
+          institution_id: profile.institution_id,
+          type: 'shift_changed',
+          title: 'Program İptal Edildi',
+          body: `${existing.title} programı iptal edildi`
+        }))
+
+        await supabase.from('notifications').insert(notifications)
+      }
+    }
+
+    // 6. audit_logs'a kaydet
     await supabase.from('audit_logs').insert({
       institution_id: profile.institution_id,
       user_id: profile.id,
       action: 'deleted',
       table_name: 'schedules',
       record_id: id,
-      old_value: { title: existing.title, status: existing.status },
+      old_value: { title: existing.title, status: existing.status, slotCount: slotCount || 0 },
     })
 
     return NextResponse.json({ success: true })

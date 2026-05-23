@@ -7,6 +7,7 @@ import { PublishButton } from './PublishButton'
 import { deleteSchedule, updateSchedule } from '@/lib/api/schedules'
 import type { ScheduleRecord } from '@/lib/api/types'
 import { CalendarX } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface ScheduleListProps {
   schedules: ScheduleRecord[]
@@ -18,24 +19,23 @@ export function ScheduleList({ schedules, basePath }: ScheduleListProps) {
   const [publishId, setPublishId] = useState<string | null>(null)
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Bu taslak programı silmek istediğinizden emin misiniz?')) return
     try {
       await deleteSchedule(id)
       router.refresh()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Silme hatası'
-      alert(message)
+      toast.error(message)
     }
   }
 
   const handleArchive = async (id: string) => {
-    if (!confirm('Bu programı arşivlemek istediğinizden emin misiniz?')) return
     try {
       await updateSchedule(id, { status: 'archived' })
+      toast.success('Program arşivlendi')
       router.refresh()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Arşivleme hatası'
-      alert(message)
+      toast.error(message)
     }
   }
 

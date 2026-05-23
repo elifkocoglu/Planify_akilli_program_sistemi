@@ -7,6 +7,8 @@ import {
   ArrowLeft,
   Calendar,
   Plus,
+  Trash2,
+  Archive,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -15,7 +17,8 @@ import { SlotTable } from '@/components/schedules/SlotTable'
 import { UnresolvedAlert } from '@/components/schedules/UnresolvedAlert'
 import { GenerateButton } from '@/components/schedules/GenerateButton'
 import { PublishButton } from '@/components/schedules/PublishButton'
-import { addSlot } from '@/lib/api/schedules'
+import { addSlot, deleteSchedule, updateSchedule } from '@/lib/api/schedules'
+import { toast } from 'sonner'
 import {
   Dialog,
   DialogContent,
@@ -23,6 +26,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import type { ScheduleRecord, SlotRecord } from '@/lib/api/types'
 import type { UnresolvedSlot } from '@planify/shared'
 
@@ -51,6 +64,9 @@ export default function ScheduleDetailPage({ params }: { params: { id: string } 
   const [newSlot, setNewSlot] = useState({ staffId: '', date: '', startTime: '08:00', endTime: '16:00' })
   const [addSlotLoading, setAddSlotLoading] = useState(false)
   const [addSlotError, setAddSlotError] = useState<string | null>(null)
+
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -103,6 +119,34 @@ export default function ScheduleDetailPage({ params }: { params: { id: string } 
       setAddSlotError(err instanceof Error ? err.message : 'Slot eklenemedi')
     } finally {
       setAddSlotLoading(false)
+    }
+  }
+
+  const handleArchive = async () => {
+    try {
+      await updateSchedule(id, { status: 'archived' })
+      toast.success('Program arşivlendi')
+      router.refresh()
+      const res = await fetch(`/api/schedules/${id}`)
+      const data = await res.json()
+      if (data.success) {
+        setSchedule(data.schedule)
+      }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Arşivleme hatası')
+    }
+  }
+
+  const handleDelete = async () => {
+    setIsDeleting(true)
+    try {
+      await deleteSchedule(id)
+      toast.success('Program silindi')
+      router.push('/dashboard/admin/schedules')
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Silme hatası')
+      setIsDeleting(false)
+      setDeleteOpen(false)
     }
   }
 
@@ -205,9 +249,34 @@ export default function ScheduleDetailPage({ params }: { params: { id: string } 
                 }}
               />
 
-              <PublishButton scheduleId={id} />
+              <PublishButton scheduleId={id} onSuccess={() => {
+                router.refresh()
+                window.location.reload()
+              }} />
             </>
           )}
+
+          {schedule.status === 'published' && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-white/10 text-slate-300 hover:text-white"
+              onClick={handleArchive}
+            >
+              <Archive className="h-3.5 w-3.5 mr-1.5" />
+              Arşivle
+            </Button>
+          )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-red-500/20 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+            onClick={() => setDeleteOpen(true)}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+            Sil
+          </Button>
         </div>
       </div>
 
@@ -279,6 +348,36 @@ export default function ScheduleDetailPage({ params }: { params: { id: string } 
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent className="bg-slate-900 border-white/10 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Programı Sil</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">
+              {schedule.status === 'published'
+                ? 'Bu yayınlanan programı silmek istediğinizden emin misiniz? Tüm nöbet/ders kayıtları silinecek ve personel bilgilendirilecektir.'
+                : schedule.status === 'draft'
+                ? 'Bu taslak programı silmek istediğinizden emin misiniz?'
+                : 'Bu arşivlenmiş programı kalıcı olarak silmek istediğinizden emin misiniz?'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting} className="bg-transparent border-white/10 hover:bg-white/5 hover:text-white">
+              İptal
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={(e) => {
+                e.preventDefault()
+                handleDelete()
+              }}
+            >
+              {isDeleting ? 'Siliniyor...' : 'Sil'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

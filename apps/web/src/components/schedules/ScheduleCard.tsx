@@ -1,9 +1,20 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { Calendar, Clock, Pencil, Trash2, Eye, Send, Archive } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import type { ScheduleRecord } from '@/lib/api/types'
 
 const statusConfig = {
@@ -26,6 +37,8 @@ interface ScheduleCardProps {
 }
 
 export function ScheduleCard({ schedule, basePath, onPublish, onDelete, onArchive }: ScheduleCardProps) {
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  
   const status = statusConfig[schedule.status]
   const type = typeConfig[schedule.type]
   const departmentName = schedule.departments?.name ?? 'Departman'
@@ -92,15 +105,6 @@ export function ScheduleCard({ schedule, basePath, onPublish, onDelete, onArchiv
               <Send className="h-3.5 w-3.5 mr-1.5" />
               Yayınla
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-red-400 hover:text-red-300 hover:bg-red-500/10 ml-auto"
-              onClick={() => onDelete?.(schedule.id)}
-            >
-              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-              Sil
-            </Button>
           </>
         )}
         {schedule.status === 'published' && (
@@ -114,7 +118,7 @@ export function ScheduleCard({ schedule, basePath, onPublish, onDelete, onArchiv
             <Button
               variant="ghost"
               size="sm"
-              className="text-slate-400 hover:text-white ml-auto"
+              className="text-slate-400 hover:text-white"
               onClick={() => onArchive?.(schedule.id)}
             >
               <Archive className="h-3.5 w-3.5 mr-1.5" />
@@ -126,11 +130,51 @@ export function ScheduleCard({ schedule, basePath, onPublish, onDelete, onArchiv
           <Link href={`${basePath}/schedules/${schedule.id}`}>
             <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white">
               <Eye className="h-3.5 w-3.5 mr-1.5" />
-              Görüntüle
+                Görüntüle
             </Button>
           </Link>
         )}
+        
+        {/* Sil Butonu Her Zaman Görünsün */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-red-400 border-red-500/20 hover:text-red-300 hover:bg-red-500/10 ml-auto"
+          onClick={() => setDeleteOpen(true)}
+        >
+          <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+          Sil
+        </Button>
       </div>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent className="bg-slate-900 border-white/10 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Programı Sil</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">
+              {schedule.status === 'published'
+                ? 'Bu yayınlanan programı silmek istediğinizden emin misiniz? Tüm nöbet/ders kayıtları silinecek ve personel bilgilendirilecektir.'
+                : schedule.status === 'draft'
+                ? 'Bu taslak programı silmek istediğinizden emin misiniz?'
+                : 'Bu arşivlenmiş programı kalıcı olarak silmek istediğinizden emin misiniz?'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-transparent border-white/10 hover:bg-white/5 hover:text-white">
+              İptal
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => {
+                onDelete?.(schedule.id)
+                setDeleteOpen(false)
+              }}
+            >
+              Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
