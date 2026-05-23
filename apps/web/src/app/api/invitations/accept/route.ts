@@ -44,6 +44,10 @@ export async function POST(request: Request) {
     let createdUserId = userId;
 
     if (!createdUserId) {
+      console.log('Gönderilen email:', email)
+      console.log('Full name:', full_name)
+      console.log('Email boş mu:', !email || email.trim() === '')
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email,
         password,
@@ -56,7 +60,23 @@ export async function POST(request: Request) {
       })
 
       if (authError || !authData.user) {
-        return NextResponse.json({ success: false, error: authError?.message || 'Bilinmeyen auth hatası' }, { status: 500 })
+        console.error('Supabase auth hatası:', authError)
+        console.error('Hata kodu:', authError?.status)
+        console.error('Hata mesajı:', authError?.message)
+        
+        let errorMessage = authError?.message || 'Bilinmeyen auth hatası'
+        
+        if (errorMessage.includes('already registered') || errorMessage.includes('already been registered')) {
+          errorMessage = 'Bu e-posta zaten kayıtlı'
+        } else if (errorMessage.includes('Anonymous sign-ins are disabled')) {
+          errorMessage = 'E-posta ve şifre boş gönderilemez'
+        } else if (errorMessage.includes('Password should be')) {
+          errorMessage = 'Şifre en az 6 karakter olmalı'
+        } else if (errorMessage.includes('invalid')) {
+          errorMessage = 'Geçerli bir e-posta adresi girin'
+        }
+
+        return NextResponse.json({ success: false, error: errorMessage }, { status: 500 })
       }
 
       createdUserId = authData.user.id
@@ -107,7 +127,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, message: 'Kayıt başarılı.' })
 
   } catch (error: unknown) {
+    console.error('Beklenmeyen hata:', error)
     const err = error as Error
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Hata: ' + String(err) }, { status: 500 })
   }
 }
