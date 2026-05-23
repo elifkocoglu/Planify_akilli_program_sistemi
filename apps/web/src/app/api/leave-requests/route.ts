@@ -59,6 +59,7 @@ export async function POST(request: Request) {
       .from('leave_requests')
       .insert({
         staff_id: profile.id,
+        institution_id: profile.institution_id,
         type,
         start_date: startDate,
         end_date: endDate,
@@ -94,6 +95,7 @@ export async function POST(request: Request) {
       }
       const notifications = admins.map((admin) => ({
         user_id: admin.id,
+        institution_id: profile.institution_id,
         type: 'leave_request' as const,
         title: 'Yeni İzin Talebi',
         body: `${profile.full_name} ${typeLabels[type] || type} talebi oluşturdu (${startDate} - ${endDate})`,
@@ -126,15 +128,25 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
 
-    let query = supabase
-      .from('leave_requests')
-      .select('*')
-      .eq('staff_id', profile.id)
-      .order('created_at', { ascending: false })
+    const view = searchParams.get('view')
+
+    const isAdminView = view === 'admin' && ['institution_admin', 'department_admin'].includes(profile.role)
+
+    let query = supabase.from('leave_requests').select(
+      isAdminView ? '*, profiles!staff_id(full_name, department_id, departments(name))' : '*'
+    )
+
+    if (isAdminView) {
+      query = query.eq('institution_id', profile.institution_id)
+    } else {
+      query = query.eq('staff_id', profile.id)
+    }
 
     if (status) {
       query = query.eq('status', status)
     }
+
+    query = query.order('created_at', { ascending: false })
 
     const { data: leaveRequests, error } = await query
 

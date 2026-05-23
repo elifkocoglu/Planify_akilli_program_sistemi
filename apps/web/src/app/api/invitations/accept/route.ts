@@ -4,13 +4,13 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 
 export async function POST(request: Request) {
   try {
-    const { code, full_name, password, userId } = await request.json()
+    const { code, full_name, email, password, userId } = await request.json()
 
     if (!code) {
       return NextResponse.json({ success: false, error: 'Davet kodu zorunludur' }, { status: 400 })
     }
 
-    if (!userId && (!full_name || !password)) {
+    if (!userId && (!full_name || !email || !password)) {
       return NextResponse.json({ success: false, error: 'Eksik parametreler' }, { status: 400 })
     }
 
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
 
     if (!createdUserId) {
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: invitation.email, // Davetteki email adresine göre
+        email: email,
         password,
         options: {
           data: {

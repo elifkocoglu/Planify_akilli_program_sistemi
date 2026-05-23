@@ -74,16 +74,28 @@ export default function RegisterPage() {
     }
 
     const formData = new FormData(e.currentTarget)
+    const email = formData.get('email') as string
     const password = formData.get('password') as string
     const confirmPassword = formData.get('confirm_password') as string
     const fullName = formData.get('full_name') as string
 
+    if (!email || !password || !confirmPassword || !fullName) {
+      setClientError('Lütfen tüm alanları doldurun.')
+      return
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      setClientError('Geçerli bir e-posta adresi girin')
+      return
+    }
+
     if (password !== confirmPassword) {
-      setClientError('Şifreler eşleşmiyor.')
+      setClientError('Şifreler eşleşmiyor')
       return
     }
     if (password.length < 6) {
-      setClientError('Şifre en az 6 karakter olmalı.')
+      setClientError('Şifre en az 6 karakter olmalı')
       return
     }
 
@@ -91,16 +103,18 @@ export default function RegisterPage() {
       const res = await fetch('/api/invitations/accept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: inviteCode, password, full_name: fullName })
+        body: JSON.stringify({ code: inviteCode, email, password, full_name: fullName })
       })
 
       const data = await res.json()
       if (data.success) {
-        // Yeni sayfayı yenilemek ve context'i doldurmak için router.refresh kullanılabilir
-        // veya direkt anasayfaya atılır middleware dashboarda seçer
         window.location.href = '/'
       } else {
-        setClientError(data.error || 'Kayıt sırasında hata oluştu.')
+        if (data.error?.includes('already registered') || data.error?.includes('kayıtlı')) {
+          setClientError('Bu e-posta zaten kayıtlı')
+        } else {
+          setClientError(data.error || 'Kayıt sırasında hata oluştu.')
+        }
       }
     } catch {
       setClientError('Bir hata oluştu.')
@@ -192,8 +206,8 @@ export default function RegisterPage() {
                 {verifying && <p className="text-xs text-blue-300">Doğrulanıyor...</p>}
                 {inviteData && inviteData.valid && (
                   <div className="flex items-center gap-2 mt-2 p-3 bg-green-500/20 border border-green-500/30 rounded-lg text-green-300 text-sm">
-                    <Building2 className="w-5 h-5 shrink-0" />
-                    <span><b>{inviteData.institution_name}</b> ailesine katılıyorsunuz.</span>
+                    <CheckCircle2 className="w-5 h-5 shrink-0" />
+                    <span>✓ <b>{inviteData.institution_name}</b> kurumuna katılıyorsunuz</span>
                   </div>
                 )}
                 {inviteData && !inviteData.valid && inviteCode.length > 3 && (
@@ -222,22 +236,20 @@ export default function RegisterPage() {
                 />
               </div>
 
-              {!hasCode && (
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-blue-100/80 text-sm">
-                    E-posta
-                  </Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="ornek@kurum.edu.tr"
-                    required
-                    autoComplete="email"
-                    className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus:border-blue-400 focus:ring-blue-400"
-                  />
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-blue-100/80 text-sm">
+                  E-posta
+                </Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="ornek@kurum.edu.tr"
+                  required
+                  autoComplete="email"
+                  className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus:border-blue-400 focus:ring-blue-400"
+                />
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-blue-100/80 text-sm">

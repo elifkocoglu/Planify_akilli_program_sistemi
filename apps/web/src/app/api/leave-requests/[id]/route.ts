@@ -97,6 +97,7 @@ export async function PATCH(
         .update({
           status: newStatus,
           reviewed_by: profile.id,
+          reviewed_at: new Date().toISOString(),
           reviewer_note: reviewerNote || null,
         })
         .eq('id', id)
@@ -117,6 +118,7 @@ export async function PATCH(
 
       await supabase.from('notifications').insert({
         user_id: leaveRequest.staff_id,
+        institution_id: leaveRequest.institution_id,
         type: notificationType,
         title: notificationTitle,
         body: notificationBody,
