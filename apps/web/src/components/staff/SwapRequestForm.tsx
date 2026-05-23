@@ -29,6 +29,7 @@ interface SlotOption {
 interface StaffOption {
   id: string
   full_name: string
+  role?: string
 }
 
 function formatTime(t: string) { return t.slice(0, 5) }
@@ -93,7 +94,7 @@ export function SwapRequestForm() {
     const supabase = createClient()
     let query = supabase
       .from('profiles')
-      .select('id, full_name')
+      .select('id, full_name, role')
       .eq('institution_id', profile.institution_id)
       .eq('is_active', true)
       .neq('id', profile.id)
@@ -281,7 +282,15 @@ export function SwapRequestForm() {
                 ) : (
                   staffList.map((s) => (
                     <SelectItem key={s.id} value={s.id} className="text-white hover:bg-white/10">
-                      {s.full_name}
+                      <div className="flex items-center gap-2">
+                        <span>{s.full_name}</span>
+                        {s.role === 'department_admin' && (
+                          <span className="text-xs text-slate-400">(Departman Yöneticisi)</span>
+                        )}
+                        {s.role === 'institution_admin' && (
+                          <span className="text-xs text-slate-400">(Kurum Yöneticisi)</span>
+                        )}
+                      </div>
                     </SelectItem>
                   ))
                 )}

@@ -58,6 +58,7 @@ interface ShiftSlot {
 interface StaffMember {
   id: string
   full_name: string
+  role?: string
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -922,7 +923,7 @@ function NewSwapRequestModal({ visible, onClose, onSuccess, toast, initialSlotId
     async function fetchColleagues() {
       setLoadingColleagues(true)
       try {
-        let query = supabase.from('profiles').select('id, full_name')
+        let query = supabase.from('profiles').select('id, full_name, role')
           .eq('institution_id', profile!.institutionId)
           .eq('is_active', true)
           .neq('id', user!.id)
@@ -1130,9 +1131,17 @@ function NewSwapRequestModal({ visible, onClose, onSuccess, toast, initialSlotId
                             {getInitials(person.full_name)}
                           </Text>
                         </View>
-                        <Text style={{ color: '#F1F5F9', fontSize: 14, fontWeight: '600', flex: 1 }}>
-                          {person.full_name}
-                        </Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: '#F1F5F9', fontSize: 14, fontWeight: '600' }}>
+                            {person.full_name}
+                          </Text>
+                          {person.role === 'department_admin' && (
+                            <Text style={{ color: '#64748B', fontSize: 11, marginTop: 2 }}>(Departman Yöneticisi)</Text>
+                          )}
+                          {person.role === 'institution_admin' && (
+                            <Text style={{ color: '#64748B', fontSize: 11, marginTop: 2 }}>(Kurum Yöneticisi)</Text>
+                          )}
+                        </View>
                         {isActive && <Ionicons name="checkmark-circle" size={22} color="#3B82F6" />}
                       </TouchableOpacity>
                     )
