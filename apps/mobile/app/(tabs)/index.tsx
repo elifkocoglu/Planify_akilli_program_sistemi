@@ -179,10 +179,11 @@ export default function DashboardScreen() {
       // 1. Bugünkü nöbet
       const { data: todayData, error: todayErr } = await supabase
         .from('schedule_slots')
-        .select('*, schedules(title, status), departments(name)')
+        .select('*, schedules!inner(title, status), departments(name)')
         .eq('staff_id', user.id)
         .eq('date', today)
         .eq('status', 'active')
+        .eq('schedules.status', 'published')
         .maybeSingle()
 
       if (todayErr) throw todayErr
@@ -212,11 +213,12 @@ export default function DashboardScreen() {
       // 4. Yaklaşan nöbetler (bugün dahil, 7 gün)
       const { data: upcomingData, error: upcomingErr } = await supabase
         .from('schedule_slots')
-        .select('*, departments(name)')
+        .select('*, departments(name), schedules!inner(status)')
         .eq('staff_id', user.id)
         .gte('date', today)
         .lte('date', next7days)
         .eq('status', 'active')
+        .eq('schedules.status', 'published')
         .order('date', { ascending: true })
 
       if (upcomingErr) throw upcomingErr

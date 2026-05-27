@@ -72,13 +72,15 @@ export function useSchedule() {
         .select(`
           id, date, start_time, end_time, status, notes,
           departments(name),
-          schedules(title, status, type)
+          schedules!inner(title, status, type)
         `)
         .eq('staff_id', user.id)
+        .eq('schedules.status', 'published')
         .gte('date', monthStart)
         .lte('date', monthEnd)
         .eq('status', 'active')
         .order('date', { ascending: true })
+
 
       if (fetchError) throw fetchError
 

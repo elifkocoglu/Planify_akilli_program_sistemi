@@ -87,35 +87,39 @@ export default async function StaffDashboardPage() {
     // Today's slot
     supabase
       .from('schedule_slots')
-      .select('id, date, start_time, end_time, department_id, departments(name)')
+      .select('id, date, start_time, end_time, department_id, departments(name), schedules!inner(status)')
       .eq('staff_id', user.id)
       .eq('date', todayStr)
       .eq('status', 'active')
+      .eq('schedules.status', 'published')
       .limit(1),
     // This week's slots count
     supabase
       .from('schedule_slots')
-      .select('id', { count: 'exact', head: true })
+      .select('id, schedules!inner(status)', { count: 'exact', head: true })
       .eq('staff_id', user.id)
       .gte('date', mondayStr)
       .lte('date', sundayStr)
-      .eq('status', 'active'),
+      .eq('status', 'active')
+      .eq('schedules.status', 'published'),
     // This month's slots count
     supabase
       .from('schedule_slots')
-      .select('id', { count: 'exact', head: true })
+      .select('id, schedules!inner(status)', { count: 'exact', head: true })
       .eq('staff_id', user.id)
       .gte('date', monthStart)
       .lte('date', monthEnd)
-      .eq('status', 'active'),
+      .eq('status', 'active')
+      .eq('schedules.status', 'published'),
     // Upcoming 7 days slots
     supabase
       .from('schedule_slots')
-      .select('id, date, start_time, end_time, department_id, departments(name)')
+      .select('id, date, start_time, end_time, department_id, departments(name), schedules!inner(status)')
       .eq('staff_id', user.id)
       .gte('date', todayStr)
       .lte('date', next7Str)
       .eq('status', 'active')
+      .eq('schedules.status', 'published')
       .order('date', { ascending: true })
       .order('start_time', { ascending: true }),
     // Unread notifications count
@@ -146,10 +150,11 @@ export default async function StaffDashboardPage() {
     // Next slot (for empty today card)
     supabase
       .from('schedule_slots')
-      .select('date')
+      .select('date, schedules!inner(status)')
       .eq('staff_id', user.id)
       .gt('date', todayStr)
       .eq('status', 'active')
+      .eq('schedules.status', 'published')
       .order('date', { ascending: true })
       .limit(1),
   ])

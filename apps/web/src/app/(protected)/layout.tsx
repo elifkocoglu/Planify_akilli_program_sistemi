@@ -22,7 +22,7 @@ export default async function ProtectedLayout({
   // Profil çek
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('id, full_name, role, institution_id, is_active')
+    .select('id, full_name, role, institution_id, department_id, is_active')
     .eq('id', user.id)
     .single()
 
@@ -50,6 +50,7 @@ export default async function ProtectedLayout({
     full_name: profile.full_name,
     role: profile.role as UserProfile['role'],
     institution_id: profile.institution_id,
+    department_id: (profile as any).department_id ?? null,
     is_active: profile.is_active,
   }
 

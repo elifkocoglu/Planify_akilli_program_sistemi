@@ -59,6 +59,7 @@ interface StaffMember {
   id: string
   full_name: string
   role?: string
+  department_id?: string | null
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -923,17 +924,27 @@ function NewSwapRequestModal({ visible, onClose, onSuccess, toast, initialSlotId
     async function fetchColleagues() {
       setLoadingColleagues(true)
       try {
-        let query = supabase.from('profiles').select('id, full_name, role')
-          .eq('institution_id', profile!.institutionId)
-          .eq('is_active', true)
-          .neq('id', user!.id)
+        console.log('institutionId:', profile?.institutionId)
+        console.log('userId:', user?.id)
+        console.log('departmentId:', profile?.departmentId)
 
-        if (profile!.departmentId) {
-          query = query.eq('department_id', profile!.departmentId)
+        // institutionId yoksa sorgu çalıştırma
+        if (!profile?.institutionId) {
+          console.error('institutionId bulunamadı')
+          return
         }
 
-        const { data, error } = await query.order('full_name', { ascending: true })
-        if (error) throw error
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, full_name, role, department_id')
+          .eq('institution_id', profile.institutionId)
+          .eq('is_active', true)
+          .neq('id', user.id)
+          .order('full_name', { ascending: true })
+
+        if (error) console.error('Sorgu hatası:', error)
+        console.log('Bulunan kişiler:', data)
+
         setColleagues((data as StaffMember[]) ?? [])
       } catch (err) {
         console.error('Personel listesi yüklenemedi:', err)
@@ -1101,7 +1112,7 @@ function NewSwapRequestModal({ visible, onClose, onSuccess, toast, initialSlotId
               ) : colleagues.length === 0 ? (
                 <View style={{ alignItems: 'center', paddingVertical: 32 }}>
                   <Ionicons name="people-outline" size={48} color="#334155" />
-                  <Text style={{ color: '#94A3B8', fontSize: 14, marginTop: 12, textAlign: 'center' }}>Aynı departmanda başka personel bulunamadı.</Text>
+                  <Text style={{ color: '#94A3B8', fontSize: 14, marginTop: 12, textAlign: 'center' }}>Aynı kurumda başka personel bulunamadı.</Text>
                 </View>
               ) : (
                 <View style={{ gap: 8, marginBottom: 20 }}>
@@ -1140,6 +1151,11 @@ function NewSwapRequestModal({ visible, onClose, onSuccess, toast, initialSlotId
                           )}
                           {person.role === 'institution_admin' && (
                             <Text style={{ color: '#64748B', fontSize: 11, marginTop: 2 }}>(Kurum Yöneticisi)</Text>
+                          )}
+                          {person.department_id && profile?.departmentId && person.department_id !== profile.departmentId && (
+                            <View style={{ backgroundColor: 'rgba(59,130,246,0.1)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, marginTop: 4, alignSelf: 'flex-start' }}>
+                              <Text style={{ color: '#60A5FA', fontSize: 10, fontWeight: '500' }}>Farklı departman</Text>
+                            </View>
                           )}
                         </View>
                         {isActive && <Ionicons name="checkmark-circle" size={22} color="#3B82F6" />}

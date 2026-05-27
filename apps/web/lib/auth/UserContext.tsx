@@ -9,6 +9,7 @@ export interface UserProfile {
   full_name: string | null
   role: UserRole
   institution_id: string | null
+  department_id: string | null
   is_active: boolean
 }
 

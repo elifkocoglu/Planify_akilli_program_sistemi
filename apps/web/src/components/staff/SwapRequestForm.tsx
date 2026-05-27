@@ -30,6 +30,7 @@ interface StaffOption {
   id: string
   full_name: string
   role?: string
+  department_id?: string | null
 }
 
 function formatTime(t: string) { return t.slice(0, 5) }
@@ -85,27 +86,34 @@ export function SwapRequestForm() {
     fetchMySlots()
   }, [profile.id, today])
 
-  // 2) Seçilen slotun departmanındaki personelleri yükle
+  // 2) Aynı kurumdaki aktif personelleri yükle (departman filtresi yok)
   const fetchStaffList = useCallback(async () => {
     if (!selectedMySlot) return
-    const mySlot = mySlots.find((s) => s.id === selectedMySlot)
-    if (!mySlot) return
 
     const supabase = createClient()
-    let query = supabase
+    console.log('institutionId:', profile?.institution_id)
+    console.log('userId:', profile?.id)
+    console.log('departmentId:', profile?.department_id)
+
+    // institutionId yoksa sorgu çalıştırma
+    if (!profile?.institution_id) {
+      console.error('institutionId bulunamadı')
+      return
+    }
+
+    const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, role')
+      .select('id, full_name, role, department_id')
       .eq('institution_id', profile.institution_id)
       .eq('is_active', true)
       .neq('id', profile.id)
+      .order('full_name', { ascending: true })
 
-    if (mySlot.department_id) {
-      query = query.eq('department_id', mySlot.department_id)
-    }
+    if (error) console.error('Sorgu hatası:', error)
+    console.log('Bulunan kişiler:', data)
 
-    const { data } = await query.order('full_name', { ascending: true })
     setStaffList(data || [])
-  }, [selectedMySlot, mySlots, profile.id, profile.institution_id])
+  }, [selectedMySlot, profile.id, profile.institution_id, profile.department_id])
 
   useEffect(() => {
     fetchStaffList()
@@ -289,6 +297,9 @@ export function SwapRequestForm() {
                         )}
                         {s.role === 'institution_admin' && (
                           <span className="text-xs text-slate-400">(Kurum Yöneticisi)</span>
+                        )}
+                        {s.department_id && profile.department_id && s.department_id !== profile.department_id && (
+                          <span className="text-xs text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded">Farklı departman</span>
                         )}
                       </div>
                     </SelectItem>

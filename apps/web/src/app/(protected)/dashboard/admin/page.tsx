@@ -54,13 +54,16 @@ export default function InstitutionAdminDashboardPage() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        const res = await fetch('/api/schedules?status=draft')
-        const draftData = await res.json()
-        const pubRes = await fetch('/api/schedules?status=published')
+        const [draftRes, pubRes, leavesRes, swapsRes] = await Promise.all([
+          fetch('/api/schedules?status=draft'),
+          fetch('/api/schedules?status=published'),
+          fetch('/api/leave-requests?status=pending&view=admin'),
+          fetch('/api/swap-requests?status=approved_by_receiver'),
+        ])
+        const draftData = await draftRes.json()
         const pubData = await pubRes.json()
-
-        const leavesRes = await fetch('/api/leave-requests?status=pending&view=admin')
         const leavesData = await leavesRes.json()
+        const swapsData = await swapsRes.json()
 
         setStats({
           draftCount: draftData.schedules?.length ?? 0,
@@ -69,7 +72,7 @@ export default function InstitutionAdminDashboardPage() {
           activeStaff: 0,
           pendingLeaves: leavesData.leaveRequests?.length ?? 0,
           pendingLeaveRequests: (leavesData.leaveRequests ?? []).slice(0, 5),
-          pendingSwaps: 0,
+          pendingSwaps: swapsData.swapRequests?.length ?? 0,
           recentSchedules: [
             ...(draftData.schedules ?? []),
             ...(pubData.schedules ?? []),
@@ -142,7 +145,8 @@ export default function InstitutionAdminDashboardPage() {
       icon: ArrowRightLeft,
       color: 'text-cyan-400',
       bg: 'bg-cyan-500/10',
-      desc: 'Onay bekliyor',
+      desc: 'Admin onayı bekliyor',
+      href: '/dashboard/admin/swap',
     },
   ]
 
@@ -179,11 +183,8 @@ export default function InstitutionAdminDashboardPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {cards.map((card) => {
             const Icon = card.icon
-            return (
-              <div
-                key={card.label}
-                className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 hover:bg-white/[0.04] transition-colors"
-              >
+            const cardContent = (
+              <>
                 <div className="flex items-center gap-3 mb-3">
                   <div className={`w-8 h-8 rounded-lg ${card.bg} flex items-center justify-center`}>
                     <Icon className={`h-4 w-4 ${card.color}`} />
@@ -192,9 +193,24 @@ export default function InstitutionAdminDashboardPage() {
                 </div>
                 <p className="text-2xl font-bold text-white">{card.value}</p>
                 <p className="text-xs text-slate-500 mt-1">{card.desc}</p>
-              </div>
+              </>
             )
-          })}
+            return card.href ? (
+              <Link
+                key={card.label}
+                href={card.href}
+                className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 hover:bg-white/[0.04] hover:border-cyan-500/20 transition-colors block"
+              >
+                {cardContent}
+              </Link>
+            ) : (
+              <div
+                key={card.label}
+                className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 hover:bg-white/[0.04] transition-colors"
+              >
+                {cardContent}
+              </div>
+            )          })}
         </div>
       )}
 
