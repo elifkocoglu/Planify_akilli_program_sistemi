@@ -1,200 +1,254 @@
-import { useState, useEffect } from 'react'
+import { useCallback } from 'react'
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
+  RefreshControl,
   ActivityIndicator,
-  Modal,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { useAuth } from '@/lib/auth/AuthContext'
-import { supabase } from '@/lib/supabase/client'
+import { useRouter } from 'expo-router'
+import { useNotifications, type AppNotification } from '@/hooks/useNotifications'
 
-interface Notification {
-  id: string
-  title: string
-  message: string
-  isRead: boolean
-  createdAt: string
-  type: string
+// ─── Tip Yapılandırması ───────────────────────────────────────
+type TypeConfig = {
+  icon: keyof typeof Ionicons.glyphMap
+  color: string
+  bg: string
 }
 
-export default function NotificationsScreen() {
-  const { user } = useAuth()
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [loading, setLoading] = useState(true)
-  const [selected, setSelected] = useState<Notification | null>(null)
-
-  useEffect(() => {
-    if (user) loadNotifications()
-  }, [user])
-
-  async function loadNotifications() {
-    setLoading(true)
-    try {
-      const { data } = await supabase
-        .from('notifications')
-        .select('id, title, message, is_read, created_at, type')
-        .eq('user_id', user!.id)
-        .order('created_at', { ascending: false })
-        .limit(50)
-
-      setNotifications(
-        (data ?? []).map((n: any) => ({
-          id: n.id,
-          title: n.title,
-          message: n.message,
-          isRead: n.is_read,
-          createdAt: n.created_at,
-          type: n.type ?? 'general',
-        }))
-      )
-    } catch {
-      // sessiz hata
-    } finally {
-      setLoading(false)
-    }
+function getTypeConfig(type: string): TypeConfig {
+  switch (type) {
+    case 'schedule_published':
+      return { icon: 'calendar', color: '#3B82F6', bg: '#1E3A5F' }
+    case 'swap_request':
+      return { icon: 'swap-horizontal', color: '#F97316', bg: '#4A2C0A' }
+    case 'swap_approved':
+      return { icon: 'checkmark-circle', color: '#10B981', bg: '#0A2E1E' }
+    case 'swap_rejected':
+      return { icon: 'close-circle', color: '#EF4444', bg: '#3B0A0A' }
+    case 'leave_approved':
+      return { icon: 'umbrella', color: '#10B981', bg: '#0A2E1E' }
+    case 'leave_rejected':
+      return { icon: 'close-circle', color: '#EF4444', bg: '#3B0A0A' }
+    case 'shift_changed':
+      return { icon: 'warning', color: '#F59E0B', bg: '#3B2A0A' }
+    default:
+      return { icon: 'notifications', color: '#3B82F6', bg: '#1E3A5F' }
   }
+}
 
-  async function markAsRead(id: string) {
-    await supabase.from('notifications').update({ is_read: true }).eq('id', id)
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-    )
+// ─── Göreceli Zaman Formatı ──────────────────────────────────
+function formatRelativeTime(dateStr: string): string {
+  const now = Date.now()
+  const date = new Date(dateStr).getTime()
+  const diff = now - date
+
+  const minutes = Math.floor(diff / 60_000)
+  const hours = Math.floor(diff / 3_600_000)
+  const days = Math.floor(diff / 86_400_000)
+
+  if (minutes < 1) return 'Az önce'
+  if (minutes < 60) return `${minutes} dk önce`
+  if (hours < 24) return `${hours} saat önce`
+  if (days < 7) return `${days} gün önce`
+
+  return new Date(dateStr).toLocaleDateString('tr-TR', {
+    day: 'numeric',
+    month: 'long',
+  })
+}
+
+// ─── İlgili Sayfaya Yönlendirme ──────────────────────────────
+function getTargetRoute(type: string): string {
+  switch (type) {
+    case 'schedule_published':
+    case 'shift_changed':
+      return '/(tabs)/schedule'
+    case 'swap_request':
+    case 'swap_approved':
+    case 'swap_rejected':
+      return '/(tabs)/requests'
+    case 'leave_approved':
+    case 'leave_rejected':
+      return '/(tabs)/requests'
+    default:
+      return '/(tabs)/notifications'
   }
+}
 
-  async function markAllRead() {
-    await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('user_id', user!.id)
-      .eq('is_read', false)
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
-  }
+// ─── Skeleton Loading ─────────────────────────────────────────
+function SkeletonRow() {
+  return (
+    <View className="flex-row items-center gap-3 px-4 py-3.5 border-b border-slate-800">
+      <View className="w-10 h-10 rounded-full bg-slate-700 flex-shrink-0" />
+      <View className="flex-1 gap-2">
+        <View className="h-3.5 bg-slate-700 rounded-full w-2/3" />
+        <View className="h-3 bg-slate-800 rounded-full w-full" />
+        <View className="h-3 bg-slate-800 rounded-full w-1/3" />
+      </View>
+    </View>
+  )
+}
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length
+// ─── Bildirim Satırı ─────────────────────────────────────────
+function NotificationRow({
+  item,
+  onPress,
+}: {
+  item: AppNotification
+  onPress: (item: AppNotification) => void
+}) {
+  const config = getTypeConfig(item.type)
 
   return (
-    <View className="flex-1 bg-slate-900">
-      {/* Header */}
-      <View className="bg-slate-800 px-5 pt-14 pb-4 border-b border-slate-700">
-        <View className="flex-row items-center justify-between">
+    <>
+      <TouchableOpacity
+        onPress={() => onPress(item)}
+        activeOpacity={0.7}
+        className={`flex-row items-start gap-3 px-4 py-3.5 ${
+          !item.isRead ? 'bg-blue-500/5' : 'bg-transparent'
+        }`}
+      >
+        {/* Sol: Tip İkonu */}
+        <View
+          className="w-10 h-10 rounded-full items-center justify-center flex-shrink-0 mt-0.5"
+          style={{ backgroundColor: config.bg }}
+        >
+          <Ionicons name={config.icon} size={20} color={config.color} />
+        </View>
+
+        {/* Orta: İçerik */}
+        <View className="flex-1">
+          <View className="flex-row items-center justify-between mb-1">
+            <Text
+              className={`text-sm flex-1 mr-2 ${
+                !item.isRead ? 'font-bold text-white' : 'font-medium text-slate-300'
+              }`}
+              numberOfLines={1}
+            >
+              {item.title}
+            </Text>
+            {/* Sağ: Okunmamış göstergesi */}
+            {!item.isRead && (
+              <View className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 mt-0.5" />
+            )}
+          </View>
+          <Text className="text-slate-400 text-xs leading-4" numberOfLines={2}>
+            {item.body}
+          </Text>
+          {/* Zaman */}
+          <Text className="text-slate-600 text-xs mt-1.5">
+            {formatRelativeTime(item.createdAt)}
+          </Text>
+        </View>
+      </TouchableOpacity>
+      {/* Ayraç */}
+      <View className="h-px bg-slate-800 mx-4" />
+    </>
+  )
+}
+
+// ─── Ana Ekran ────────────────────────────────────────────────
+export default function NotificationsScreen() {
+  const router = useRouter()
+  const { notifications, loading, unreadCount, refresh, markAsRead, markAllRead } =
+    useNotifications()
+
+  const handlePress = useCallback(
+    async (item: AppNotification) => {
+      // Okunmamışsa okundu işaretle
+      if (!item.isRead) {
+        await markAsRead(item.id)
+      }
+      // İlgili sayfaya git
+      const target = getTargetRoute(item.type)
+      if (target !== '/(tabs)/notifications') {
+        router.push(target as any)
+      }
+    },
+    [markAsRead, router]
+  )
+
+  return (
+    <SafeAreaView className="flex-1 bg-slate-900" edges={['top']}>
+      {/* ─── Üst Bar ─── */}
+      <View className="bg-slate-900 px-5 pt-2 pb-4 border-b border-slate-800">
+        <View className="flex-row items-start justify-between">
           <View>
             <Text className="text-white text-2xl font-bold">Bildirimler</Text>
-            {unreadCount > 0 && (
-              <Text className="text-blue-400 text-sm mt-1">
-                {unreadCount} okunmamış bildirim
+            {/* Özet satırı */}
+            {!loading && (
+              <Text
+                className={`text-sm mt-1 ${
+                  unreadCount === 0 ? 'text-emerald-400' : 'text-slate-400'
+                }`}
+              >
+                {unreadCount === 0
+                  ? 'Tüm bildirimler okundu'
+                  : `${unreadCount} okunmamış bildirim`}
               </Text>
             )}
           </View>
+          {/* Tümünü Okundu İşaretle */}
           {unreadCount > 0 && (
-            <TouchableOpacity onPress={markAllRead} className="bg-slate-700 rounded-xl px-3 py-2">
-              <Text className="text-blue-400 text-xs font-semibold">Tümünü Okundu İşaretle</Text>
+            <TouchableOpacity
+              onPress={markAllRead}
+              className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 mt-1"
+              activeOpacity={0.7}
+            >
+              <Text className="text-blue-400 text-xs font-semibold">
+                Tümünü Okundu İşaretle
+              </Text>
             </TouchableOpacity>
           )}
         </View>
       </View>
 
+      {/* ─── İçerik ─── */}
       {loading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#3B82F6" />
+        // Skeleton
+        <View className="flex-1">
+          {[1, 2, 3, 4].map((i) => (
+            <SkeletonRow key={i} />
+          ))}
         </View>
       ) : notifications.length === 0 ? (
-        <View className="flex-1 items-center justify-center px-6">
-          <Ionicons name="notifications-off-outline" size={64} color="#334155" />
-          <Text className="text-slate-400 text-center mt-4 text-base">
-            Henüz bildirim yok.
+        // Boş durum
+        <View className="flex-1 items-center justify-center px-8">
+          <View className="w-20 h-20 rounded-full bg-slate-800 items-center justify-center mb-4">
+            <Ionicons name="notifications-off-outline" size={40} color="#475569" />
+          </View>
+          <Text className="text-slate-300 text-lg font-semibold text-center">
+            Bildirim yok
+          </Text>
+          <Text className="text-slate-500 text-sm text-center mt-2">
+            Henüz bildiriminiz bulunmuyor.{'\n'}Yeni bildirimler burada görünecek.
           </Text>
         </View>
       ) : (
-        <ScrollView className="flex-1 px-4 pt-3" showsVerticalScrollIndicator={false}>
-          {notifications.map((notif) => (
-            <TouchableOpacity
-              key={notif.id}
-              onPress={() => {
-                if (!notif.isRead) markAsRead(notif.id)
-                setSelected(notif)
-              }}
-              className={`rounded-2xl p-4 mb-2.5 border ${
-                notif.isRead
-                  ? 'bg-slate-800 border-slate-700'
-                  : 'bg-blue-600/10 border-blue-500/30'
-              }`}
-            >
-              <View className="flex-row items-start gap-3">
-                <View
-                  className={`w-8 h-8 rounded-xl items-center justify-center mt-0.5 ${
-                    notif.isRead ? 'bg-slate-700' : 'bg-blue-600/30'
-                  }`}
-                >
-                  <Ionicons
-                    name="notifications"
-                    size={16}
-                    color={notif.isRead ? '#64748B' : '#60A5FA'}
-                  />
-                </View>
-                <View className="flex-1">
-                  <View className="flex-row items-center justify-between">
-                    <Text
-                      className={`font-semibold text-sm flex-1 mr-2 ${
-                        notif.isRead ? 'text-slate-300' : 'text-white'
-                      }`}
-                      numberOfLines={1}
-                    >
-                      {notif.title}
-                    </Text>
-                    {!notif.isRead && (
-                      <View className="bg-blue-500 rounded-full w-2 h-2" />
-                    )}
-                  </View>
-                  <Text className="text-slate-400 text-xs mt-1 leading-4" numberOfLines={2}>
-                    {notif.message}
-                  </Text>
-                  <Text className="text-slate-600 text-xs mt-1.5">
-                    {new Date(notif.createdAt).toLocaleString('tr-TR', {
-                      day: 'numeric',
-                      month: 'short',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
-          <View className="h-6" />
-        </ScrollView>
+        // Bildirim listesi
+        <FlatList
+          data={notifications}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <NotificationRow item={item} onPress={handlePress} />
+          )}
+          refreshControl={
+            <RefreshControl
+              refreshing={loading}
+              onRefresh={refresh}
+              tintColor="#3B82F6"
+              colors={['#3B82F6']}
+            />
+          }
+          ListFooterComponent={<View className="h-6" />}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ flexGrow: 1 }}
+        />
       )}
-
-      {/* Detay modal */}
-      <Modal visible={!!selected} transparent animationType="slide">
-        <View className="flex-1 justify-end bg-black/60">
-          <View className="bg-slate-800 rounded-t-3xl px-6 pt-6 pb-10">
-            <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-white text-lg font-bold flex-1 mr-3">
-                {selected?.title}
-              </Text>
-              <TouchableOpacity onPress={() => setSelected(null)}>
-                <Ionicons name="close" size={24} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-            <Text className="text-slate-300 text-sm leading-6">{selected?.message}</Text>
-            <Text className="text-slate-500 text-xs mt-4">
-              {selected
-                ? new Date(selected.createdAt).toLocaleString('tr-TR', {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
-                : ''}
-            </Text>
-          </View>
-        </View>
-      </Modal>
-    </View>
+    </SafeAreaView>
   )
 }
