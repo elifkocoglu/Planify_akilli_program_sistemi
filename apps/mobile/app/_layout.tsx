@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { Stack } from 'expo-router'
 import { AuthProvider } from '@/lib/auth/AuthContext'
+import { useAuth } from '@/lib/auth/AuthContext'
 import { StatusBar } from 'expo-status-bar'
 import { NotificationToast } from '@/components/shared/NotificationToast'
 import { useNotifications, type AppNotification } from '@/hooks/useNotifications'
+import {
+  registerForPushNotifications,
+  useNotificationListeners,
+} from '@/lib/notifications/pushNotifications'
 import '../global.css'
 
-// ToastManager: AuthProvider içinde çalışması gerekiyor
+// ─── Toast Yöneticisi ───────────────────────────────────────
 function ToastManager() {
   const [toastNotif, setToastNotif] = useState<AppNotification | null>(null)
   const { onNewNotification } = useNotifications()
@@ -30,7 +35,20 @@ function ToastManager() {
   )
 }
 
+// ─── Ana Navigasyon ─────────────────────────────────────────
 function RootLayoutNav() {
+  const { user } = useAuth()
+
+  // Kullanıcı giriş yapınca push token kaydet
+  useEffect(() => {
+    if (user?.id) {
+      registerForPushNotifications(user.id)
+    }
+  }, [user?.id])
+
+  // Fiziksel push bildirim dinleyicileri
+  useNotificationListeners()
+
   return (
     <>
       <Stack screenOptions={{ headerShown: false }}>

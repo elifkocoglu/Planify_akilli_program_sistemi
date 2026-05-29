@@ -100,6 +100,21 @@ export async function POST(_request: Request, { params }: RouteParams) {
 
       if (!notifError) {
         notifiedCount = notifications.length
+
+        // Push bildirim gönder (sessizce)
+        try {
+          const staffIds = departmentStaff.map((s) => s.id)
+          await supabase.functions.invoke('send-push-notification', {
+            body: {
+              userIds: staffIds,
+              title: 'Yeni Program Yayınlandı 📅',
+              body: `${schedule.title} programı yayınlandı`,
+              data: { screen: '/(tabs)/schedule' },
+            },
+          })
+        } catch {
+          // Push gönderilemese de işlem başarılı sayılır
+        }
       }
     }
 

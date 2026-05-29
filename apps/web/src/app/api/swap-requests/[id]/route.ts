@@ -99,6 +99,18 @@ export async function PATCH(
         is_read: false,
       })
 
+      // Push bildirim (sessizce)
+      try {
+        await supabase.functions.invoke('send-push-notification', {
+          body: {
+            userIds: [swap.requester_id],
+            title: 'Takas Talebiniz Kabul Edildi 🔄',
+            body: 'Karşı taraf takas teklifinizi kabul etti. Admin onayı bekleniyor.',
+            data: { screen: '/(tabs)/requests' },
+          },
+        })
+      } catch { /* sessiz */ }
+
       return NextResponse.json({ success: true })
     }
 
@@ -130,18 +142,32 @@ export async function PATCH(
       const notifyIds = [swap.requester_id]
       if (!isReceiver) notifyIds.push(swap.receiver_id)
 
+      const rejectBody = rejectReason
+        ? `Takas talebiniz reddedildi. Sebep: ${rejectReason}`
+        : 'Takas talebiniz reddedildi.'
+
       await supabase.from('notifications').insert(
         notifyIds.map((uid) => ({
           user_id: uid,
           type: 'swap_rejected' as const,
           title: 'Takas Talebi Reddedildi',
-          body: rejectReason
-            ? `Takas talebiniz reddedildi. Sebep: ${rejectReason}`
-            : 'Takas talebiniz reddedildi.',
+          body: rejectBody,
           related_id: id,
           is_read: false,
         }))
       )
+
+      // Push bildirim (sessizce)
+      try {
+        await supabase.functions.invoke('send-push-notification', {
+          body: {
+            userIds: notifyIds,
+            title: 'Takas Talebi Reddedildi ❌',
+            body: rejectBody,
+            data: { screen: '/(tabs)/requests' },
+          },
+        })
+      } catch { /* sessiz */ }
 
       return NextResponse.json({ success: true })
     }
@@ -210,6 +236,18 @@ export async function PATCH(
           is_read: false,
         },
       ])
+
+      // Push bildirim (sessizce)
+      try {
+        await supabase.functions.invoke('send-push-notification', {
+          body: {
+            userIds: [swap.requester_id, swap.receiver_id],
+            title: 'Takas Onaylandı ✅',
+            body: 'Takas talebiniz admin tarafından onaylandı. Nöbetleriniz güncellendi.',
+            data: { screen: '/(tabs)/requests' },
+          },
+        })
+      } catch { /* sessiz */ }
 
       // Audit log
       await supabase.from('audit_logs').insert({

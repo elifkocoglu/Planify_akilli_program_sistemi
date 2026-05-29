@@ -126,6 +126,20 @@ export async function PATCH(
         is_read: false,
       })
 
+      // Push bildirim gönder (sessizce, hata olursa engelleme)
+      try {
+        await supabase.functions.invoke('send-push-notification', {
+          body: {
+            userIds: [leaveRequest.staff_id],
+            title: notificationTitle,
+            body: notificationBody,
+            data: { screen: '/(tabs)/requests' },
+          },
+        })
+      } catch {
+        // Push gönderilemese de işlem başarılı sayılır
+      }
+
       return NextResponse.json({ success: true })
     }
 
