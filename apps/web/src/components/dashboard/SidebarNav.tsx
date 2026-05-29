@@ -95,6 +95,13 @@ const navItems: NavItem[] = [
     roles: ['staff'],
   },
 
+  {
+    label: 'Takas Taleplerim',
+    href: '/dashboard/admin/swap',
+    icon: <ArrowRightLeft className="h-4 w-4" />,
+    roles: ['institution_admin'],
+  },
+
   // ── Notifications (all roles with dashboard) ──
   {
     label: 'Bildirimler',

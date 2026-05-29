@@ -40,7 +40,11 @@ function formatDate(d: string) {
   })
 }
 
-export function SwapRequestForm() {
+interface SwapRequestFormProps {
+  redirectPath?: string
+}
+
+export function SwapRequestForm({ redirectPath = '/dashboard/staff/swap' }: SwapRequestFormProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { profile } = useUser()
@@ -165,7 +169,7 @@ export function SwapRequestForm() {
         receiverId: selectedStaff,
       })
       toast.success('Takas talebiniz gönderildi')
-      router.push('/dashboard/staff/swap')
+      router.push(redirectPath)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Bir hata oluştu')
     } finally {
