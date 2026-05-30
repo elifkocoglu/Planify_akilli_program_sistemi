@@ -8,7 +8,8 @@ import { supabase } from '@/lib/supabase/client'
 // ─── Bildirim Gösterim Ayarları ──────────────────────────────
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),

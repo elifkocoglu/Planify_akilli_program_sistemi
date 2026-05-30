@@ -30,7 +30,7 @@ type TabKey = 'leave' | 'swap'
 type SwapSubTab = 'sent' | 'received'
 
 type LeaveType = 'annual' | 'sick' | 'unpaid' | 'maternity' | 'administrative'
-type LeaveStatus = 'pending' | 'approved' | 'rejected'
+type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
 
 interface LeaveRequest {
   id: string
@@ -44,6 +44,8 @@ interface LeaveRequest {
   reviewed_by: string | null
   reviewed_at: string | null
   created_at: string
+  cancel_requested?: boolean
+  cancel_reason?: string | null
   reviewed_by_profile?: { full_name: string } | null
 }
 
@@ -82,9 +84,10 @@ const LEAVE_TYPE_CONFIG: Record<LeaveType, { label: string; color: string; bg: s
 }
 
 const LEAVE_STATUS_CONFIG: Record<LeaveStatus, { label: string; color: string; bg: string; border: string }> = {
-  pending:  { label: 'Bekliyor',    color: '#FBBF24', bg: 'rgba(251,191,36,0.15)', border: 'rgba(251,191,36,0.3)' },
-  approved: { label: 'Onaylandı',   color: '#34D399', bg: 'rgba(52,211,153,0.15)', border: 'rgba(52,211,153,0.3)' },
-  rejected: { label: 'Reddedildi',  color: '#F87171', bg: 'rgba(248,113,113,0.15)', border: 'rgba(248,113,113,0.3)' },
+  pending:   { label: 'Bekliyor',      color: '#FBBF24', bg: 'rgba(251,191,36,0.15)', border: 'rgba(251,191,36,0.3)' },
+  approved:  { label: 'Onaylandı',    color: '#34D399', bg: 'rgba(52,211,153,0.15)', border: 'rgba(52,211,153,0.3)' },
+  rejected:  { label: 'Reddedildi',   color: '#F87171', bg: 'rgba(248,113,113,0.15)', border: 'rgba(248,113,113,0.3)' },
+  cancelled: { label: 'İptal Edildi', color: '#94A3B8', bg: 'rgba(148,163,184,0.15)', border: 'rgba(148,163,184,0.3)' },
 }
 
 const SWAP_STATUS_CONFIG: Record<SwapStatus, { label: string; color: string; bg: string; border: string }> = {
@@ -92,6 +95,7 @@ const SWAP_STATUS_CONFIG: Record<SwapStatus, { label: string; color: string; bg:
   approved_by_receiver: { label: 'Admin Onayı Bekleniyor',  color: '#60A5FA', bg: 'rgba(59,130,246,0.15)', border: 'rgba(59,130,246,0.3)' },
   approved_by_admin:    { label: 'Onaylandı',               color: '#34D399', bg: 'rgba(52,211,153,0.15)', border: 'rgba(52,211,153,0.3)' },
   rejected:             { label: 'Reddedildi',              color: '#F87171', bg: 'rgba(248,113,113,0.15)', border: 'rgba(248,113,113,0.3)' },
+  cancelled:            { label: 'İptal Edildi',            color: '#94A3B8', bg: 'rgba(148,163,184,0.15)', border: 'rgba(148,163,184,0.3)' },
 }
 
 const LEAVE_TYPES: LeaveType[] = ['annual', 'sick', 'unpaid', 'maternity', 'administrative']
@@ -402,15 +406,78 @@ function SummaryBox({ count, label, color, bgColor }: { count: number; label: st
 // Leave Request Card
 // ─────────────────────────────────────────────────────────────
 
-function LeaveRequestCard({ item, onCancel, cancellingId }: { item: LeaveRequest; onCancel: (id: string) => void; cancellingId: string | null }) {
+// ─────────────────────────────────────────────────────────────
+// Cancel Request Modal (for approved leave cancellation)
+// ─────────────────────────────────────────────────────────────
+
+function CancelRequestModal({ visible, onClose, onSubmit, loading }: {
+  visible: boolean; onClose: () => void; onSubmit: (reason: string) => void; loading: boolean
+}) {
+  const [reason, setReason] = useState('')
+
+  useEffect(() => { if (visible) setReason('') }, [visible])
+
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <TouchableOpacity activeOpacity={1} onPress={onClose}
+          style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)', padding: 20 }}>
+          <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+            <View style={{ backgroundColor: '#1E293B', borderRadius: 20, padding: 24, width: 340, borderWidth: 1, borderColor: '#334155' }}>
+              <Text style={{ color: '#F8FAFC', fontSize: 18, fontWeight: '700', marginBottom: 4 }}>İptal Talebi Gönder</Text>
+              <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 16 }}>Onaylanan izni iptal ettirmek için talep gönderin. Admin inceleyecektir.</Text>
+              <TextInput
+                value={reason} onChangeText={setReason}
+                placeholder="İptal sebebi (opsiyonel)" placeholderTextColor="#475569"
+                multiline numberOfLines={3} textAlignVertical="top"
+                style={{ backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#334155', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, color: '#F1F5F9', fontSize: 14, minHeight: 80, marginBottom: 16 }}
+              />
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <TouchableOpacity onPress={onClose} disabled={loading}
+                  style={{ flex: 1, borderWidth: 1, borderColor: '#334155', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}>
+                  <Text style={{ color: '#94A3B8', fontSize: 14, fontWeight: '600' }}>Vazgeç</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => onSubmit(reason.trim())} disabled={loading}
+                  style={{ flex: 1, backgroundColor: '#DC2626', borderRadius: 12, paddingVertical: 12, alignItems: 'center', opacity: loading ? 0.6 : 1 }}>
+                  {loading ? <ActivityIndicator size="small" color="#FFF" /> : (
+                    <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '600' }}>Talebi Gönder</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </KeyboardAvoidingView>
+    </Modal>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+// Leave Request Card
+// ─────────────────────────────────────────────────────────────
+
+function LeaveRequestCard({ item, onCancel, cancellingId, onCancelRequest, cancelRequestingId }: {
+  item: LeaveRequest
+  onCancel: (id: string) => void
+  cancellingId: string | null
+  onCancelRequest: (id: string, reason: string) => void
+  cancelRequestingId: string | null
+}) {
   const days = calcDaysBetween(item.start_date, item.end_date)
   const canCancel = item.status === 'pending' && isFutureDate(item.start_date)
+  const canRequestCancel = item.status === 'approved' && !item.cancel_requested
+  const [cancelModalVisible, setCancelModalVisible] = useState(false)
 
   return (
     <View style={{ backgroundColor: '#1E293B', borderRadius: 16, borderWidth: 1, borderColor: '#334155', padding: 16, marginBottom: 12 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <LeaveTypeBadge type={item.type} />
         <LeaveStatusBadge status={item.status} />
+        {item.cancel_requested && (
+          <View style={{ backgroundColor: 'rgba(251,146,60,0.15)', borderWidth: 1, borderColor: 'rgba(251,146,60,0.3)', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 }}>
+            <Text style={{ color: '#FB923C', fontSize: 11, fontWeight: '600' }}>İptal Talebi Gönderildi</Text>
+          </View>
+        )}
       </View>
 
       <Text style={{ color: '#F1F5F9', fontSize: 14, fontWeight: '600', marginTop: 12 }}>
@@ -452,9 +519,33 @@ function LeaveRequestCard({ item, onCancel, cancellingId }: { item: LeaveRequest
         )}
       </View>
 
+      {canRequestCancel && (
+        <TouchableOpacity
+          onPress={() => setCancelModalVisible(true)}
+          disabled={cancelRequestingId === item.id}
+          style={{ marginTop: 10, borderWidth: 1, borderColor: 'rgba(248,113,113,0.4)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+        >
+          {cancelRequestingId === item.id ? (
+            <ActivityIndicator size="small" color="#F87171" />
+          ) : (
+            <>
+              <Ionicons name="close-circle-outline" size={14} color="#F87171" />
+              <Text style={{ color: '#F87171', fontSize: 12, fontWeight: '600' }}>İptal Talebi Gönder</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      )}
+
       {item.reason ? (
         <Text style={{ color: '#64748B', fontSize: 12, marginTop: 8, lineHeight: 18 }} numberOfLines={2}>{item.reason}</Text>
       ) : null}
+
+      <CancelRequestModal
+        visible={cancelModalVisible}
+        onClose={() => setCancelModalVisible(false)}
+        loading={cancelRequestingId === item.id}
+        onSubmit={(reason) => { setCancelModalVisible(false); onCancelRequest(item.id, reason) }}
+      />
     </View>
   )
 }
@@ -1519,6 +1610,7 @@ export default function RequestsScreen() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [cancelRequestingId, setCancelRequestingId] = useState<string | null>(null)
   const [modalVisible, setModalVisible] = useState(false)
 
   const toast = useToast()
@@ -1556,7 +1648,7 @@ export default function RequestsScreen() {
   async function handleCancel(id: string) {
     setCancellingId(id)
     try {
-      const { error } = await supabase.from('leave_requests').update({ status: 'rejected' as LeaveStatus })
+      const { error } = await supabase.from('leave_requests').update({ status: 'cancelled' as LeaveStatus })
         .eq('id', id).eq('staff_id', user!.id).eq('status', 'pending')
       if (error) { Alert.alert('Hata', `İptal işlemi başarısız: ${error.message}`); return }
       await loadLeaveRequests(); toast.show('Talep iptal edildi')
@@ -1565,9 +1657,22 @@ export default function RequestsScreen() {
     } finally { setCancellingId(null) }
   }
 
+  async function handleCancelRequest(id: string, reason: string) {
+    setCancelRequestingId(id)
+    try {
+      const { error } = await supabase.from('leave_requests')
+        .update({ cancel_requested: true, cancel_reason: reason || null })
+        .eq('id', id).eq('staff_id', user!.id)
+      if (error) { Alert.alert('Hata', `Talep gönderilemedi: ${error.message}`); return }
+      await loadLeaveRequests(); toast.show('İptal talebiniz iletildi')
+    } catch (err: unknown) {
+      Alert.alert('Hata', err instanceof Error ? err.message : 'Bilinmeyen bir hata oluştu')
+    } finally { setCancelRequestingId(null) }
+  }
+
   const pendingCount = leaveRequests.filter((r) => r.status === 'pending').length
   const approvedCount = leaveRequests.filter((r) => r.status === 'approved').length
-  const rejectedCount = leaveRequests.filter((r) => r.status === 'rejected').length
+  const rejectedCount = leaveRequests.filter((r) => r.status === 'rejected' || r.status === 'cancelled').length
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#0F172A' }} edges={['top']}>
@@ -1618,7 +1723,7 @@ export default function RequestsScreen() {
                 </TouchableOpacity>
               </View>
             }
-            renderItem={({ item }) => <LeaveRequestCard item={item} onCancel={handleCancel} cancellingId={cancellingId} />}
+            renderItem={({ item }) => <LeaveRequestCard item={item} onCancel={handleCancel} cancellingId={cancellingId} onCancelRequest={handleCancelRequest} cancelRequestingId={cancelRequestingId} />}
             ListEmptyComponent={
               <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 48, gap: 12 }}>
                 <Text style={{ fontSize: 48 }}>🏖️</Text>

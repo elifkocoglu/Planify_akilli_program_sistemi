@@ -3,7 +3,7 @@ import { requireAuth, isAuthError } from '@/lib/api/auth-helpers'
 
 // ─────────────────────────────────────────────────────────────
 // PATCH /api/leave-requests/[id] — İzin talebini güncelle
-// Staff: iptal | Admin: onay/red
+// Staff: iptal | Admin: onay/red | Admin: iptal talebi onayla/reddet
 // ─────────────────────────────────────────────────────────────
 export async function PATCH(
   request: Request,
@@ -16,9 +16,39 @@ export async function PATCH(
 
     const { id } = params
     const body = await request.json()
-    const { action, reviewerNote } = body as {
-      action: 'cancel' | 'approve' | 'reject'
+    const { action, reviewerNote, cancel_requested, cancel_reason } = body as {
+      action?: 'cancel' | 'approve' | 'reject' | 'approve_cancel_request' | 'reject_cancel_request'
       reviewerNote?: string
+      cancel_requested?: boolean
+      cancel_reason?: string
+    }
+
+    // Staff: onaylanan izni iptal talebi gönder (cancel_requested)
+    if (typeof cancel_requested === 'boolean') {
+      const { data: leaveRequest, error: fetchError } = await supabase
+        .from('leave_requests')
+        .select('*')
+        .eq('id', id)
+        .single()
+
+      if (fetchError || !leaveRequest) {
+        return NextResponse.json({ success: false, error: 'İzin talebi bulunamadı' }, { status: 404 })
+      }
+
+      if (leaveRequest.staff_id !== profile.id) {
+        return NextResponse.json({ success: false, error: 'Sadece kendi talebiniz için işlem yapabilirsiniz' }, { status: 403 })
+      }
+
+      const { error: updateError } = await supabase
+        .from('leave_requests')
+        .update({ cancel_requested, cancel_reason: cancel_reason || null })
+        .eq('id', id)
+
+      if (updateError) {
+        return NextResponse.json({ success: false, error: `İşlem başarısız: ${updateError.message}` }, { status: 500 })
+      }
+
+      return NextResponse.json({ success: true })
     }
 
     if (!action) {
@@ -60,7 +90,7 @@ export async function PATCH(
 
       const { error: updateError } = await supabase
         .from('leave_requests')
-        .update({ status: 'rejected', reviewer_note: 'Personel tarafından iptal edildi' })
+        .update({ status: 'cancelled', reviewer_note: 'Personel tarafından iptal edildi' })
         .eq('id', id)
 
       if (updateError) {
@@ -143,6 +173,88 @@ export async function PATCH(
       return NextResponse.json({ success: true })
     }
 
+    // Admin: İptal talebini onayla
+    if (action === 'approve_cancel_request') {
+      const allowedRoles = ['institution_admin', 'department_admin']
+      if (!allowedRoles.includes(profile.role)) {
+        return NextResponse.json({ success: false, error: 'Bu işlem için yetkiniz bulunmuyor' }, { status: 403 })
+      }
+
+      const { error: updateError } = await supabase
+        .from('leave_requests')
+        .update({ status: 'cancelled', cancel_requested: false, reviewed_by: profile.id, reviewed_at: new Date().toISOString() })
+        .eq('id', id)
+
+      if (updateError) {
+        return NextResponse.json({ success: false, error: `İşlem başarısız: ${updateError.message}` }, { status: 500 })
+      }
+
+      // Personele bildirim gönder
+      await supabase.from('notifications').insert({
+        user_id: leaveRequest.staff_id,
+        institution_id: leaveRequest.institution_id,
+        type: 'leave_cancel_approved',
+        title: 'İzin İptal Talebiniz Onaylandı',
+        body: `${leaveRequest.start_date} - ${leaveRequest.end_date} tarihleri arasındaki izninizin iptal talebi onaylandı.`,
+        related_id: id,
+        is_read: false,
+      })
+
+      try {
+        await supabase.functions.invoke('send-push-notification', {
+          body: {
+            userIds: [leaveRequest.staff_id],
+            title: 'İzin İptal Talebiniz Onaylandı',
+            body: 'İzin iptal talebiniz onaylandı.',
+            data: { screen: '/(tabs)/requests' },
+          },
+        })
+      } catch { /* sessiz */ }
+
+      return NextResponse.json({ success: true })
+    }
+
+    // Admin: İptal talebini reddet
+    if (action === 'reject_cancel_request') {
+      const allowedRoles = ['institution_admin', 'department_admin']
+      if (!allowedRoles.includes(profile.role)) {
+        return NextResponse.json({ success: false, error: 'Bu işlem için yetkiniz bulunmuyor' }, { status: 403 })
+      }
+
+      const { error: updateError } = await supabase
+        .from('leave_requests')
+        .update({ cancel_requested: false, cancel_reason: null })
+        .eq('id', id)
+
+      if (updateError) {
+        return NextResponse.json({ success: false, error: `İşlem başarısız: ${updateError.message}` }, { status: 500 })
+      }
+
+      // Personele bildirim gönder
+      await supabase.from('notifications').insert({
+        user_id: leaveRequest.staff_id,
+        institution_id: leaveRequest.institution_id,
+        type: 'leave_cancel_rejected',
+        title: 'İzin İptal Talebiniz Reddedildi',
+        body: `${leaveRequest.start_date} - ${leaveRequest.end_date} tarihleri arasındaki izninizin iptal talebi reddedildi.`,
+        related_id: id,
+        is_read: false,
+      })
+
+      try {
+        await supabase.functions.invoke('send-push-notification', {
+          body: {
+            userIds: [leaveRequest.staff_id],
+            title: 'İzin İptal Talebiniz Reddedildi',
+            body: 'İzin iptal talebiniz reddedildi.',
+            data: { screen: '/(tabs)/requests' },
+          },
+        })
+      } catch { /* sessiz */ }
+
+      return NextResponse.json({ success: true })
+    }
+
     return NextResponse.json(
       { success: false, error: 'Geçersiz işlem tipi' },
       { status: 400 }
@@ -155,3 +267,4 @@ export async function PATCH(
     )
   }
 }
+

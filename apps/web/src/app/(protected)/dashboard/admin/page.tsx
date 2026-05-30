@@ -24,6 +24,8 @@ interface PendingLeaveRequest {
   end_date: string
   reason: string | null
   status: string
+  cancel_requested?: boolean
+  cancel_reason?: string | null
   created_at: string
   profiles?: { full_name: string; department_id: string | null; departments?: { name: string } | null } | null
 }
@@ -297,8 +299,7 @@ export default function InstitutionAdminDashboardPage() {
                   administrative: 'İdari İzin',
                 }
                 return (
-                  <div
-                    key={lr.id}
+                    <div key={lr.id}
                     className="flex items-center justify-between px-5 py-3 hover:bg-white/[0.02] transition-colors"
                   >
                     <div className="min-w-0 flex-1">
@@ -313,38 +314,83 @@ export default function InstitutionAdminDashboardPage() {
                           {lr.profiles.departments.name}
                         </p>
                       )}
+                      {lr.cancel_requested && (
+                        <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-500/15 text-orange-400 border border-orange-500/20">
+                          İptal Talebi Var
+                        </span>
+                      )}
+                      {lr.cancel_requested && lr.cancel_reason && (
+                        <p className="text-xs text-orange-300/70 mt-0.5 italic">Sebep: {lr.cancel_reason}</p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 ml-3 flex-shrink-0">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 text-xs h-7 px-2"
-                        onClick={async () => {
-                          await fetch(`/api/leave-requests/${lr.id}`, {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: 'approve' }),
-                          })
-                          window.location.reload()
-                        }}
-                      >
-                        Onayla
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs h-7 px-2"
-                        onClick={async () => {
-                          await fetch(`/api/leave-requests/${lr.id}`, {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: 'reject' }),
-                          })
-                          window.location.reload()
-                        }}
-                      >
-                        Reddet
-                      </Button>
+                      {lr.cancel_requested ? (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 text-xs h-7 px-2"
+                            onClick={async () => {
+                              await fetch(`/api/leave-requests/${lr.id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ action: 'approve_cancel_request' }),
+                              })
+                              window.location.reload()
+                            }}
+                          >
+                            İptali Onayla
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs h-7 px-2"
+                            onClick={async () => {
+                              await fetch(`/api/leave-requests/${lr.id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ action: 'reject_cancel_request' }),
+                              })
+                              window.location.reload()
+                            }}
+                          >
+                            Reddet
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 text-xs h-7 px-2"
+                            onClick={async () => {
+                              await fetch(`/api/leave-requests/${lr.id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ action: 'approve' }),
+                              })
+                              window.location.reload()
+                            }}
+                          >
+                            Onayla
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs h-7 px-2"
+                            onClick={async () => {
+                              await fetch(`/api/leave-requests/${lr.id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ action: 'reject' }),
+                              })
+                              window.location.reload()
+                            }}
+                          >
+                            Reddet
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 )

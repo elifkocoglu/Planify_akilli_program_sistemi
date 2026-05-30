@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth/AuthContext'
 // Types
 // ─────────────────────────────────────────────────────────────
 
-export type SwapStatus = 'pending' | 'approved_by_receiver' | 'approved_by_admin' | 'rejected'
+export type SwapStatus = 'pending' | 'approved_by_receiver' | 'approved_by_admin' | 'rejected' | 'cancelled'
 
 export interface SwapSlotInfo {
   id: string
