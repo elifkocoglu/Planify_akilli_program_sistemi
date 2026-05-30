@@ -111,6 +111,31 @@ export function useSchedule() {
     fetchSlots()
   }, [fetchSlots])
 
+  // ── Realtime: slot değişikliklerini dinle (takas sonrası güncelleme) ───
+  useEffect(() => {
+    if (!user?.id) return
+
+    const channel = supabase
+      .channel(`schedule-slots-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'schedule_slots',
+          filter: `staff_id=eq.${user.id}`,
+        },
+        () => {
+          fetchSlots()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user?.id, fetchSlots])
+
   // ── Navigation helpers ────────────────────────────────────
   function prevMonth() {
     setSelectedMonth((prev) => {

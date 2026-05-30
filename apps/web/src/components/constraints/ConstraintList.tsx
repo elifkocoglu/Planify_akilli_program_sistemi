@@ -147,7 +147,7 @@ export function ConstraintList({ basePath, departments }: ConstraintListProps) {
           <SelectContent className="bg-slate-900 border-white/10">
             <SelectItem value="all">Tüm Departmanlar</SelectItem>
             {departments.map((d) => (
-              <SelectItem key={d.id} value={d.id}>
+              <SelectItem key={d.id} value={d.id} label={d.name}>
                 {d.name}
               </SelectItem>
             ))}

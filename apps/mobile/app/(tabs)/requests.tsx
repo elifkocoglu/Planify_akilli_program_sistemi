@@ -985,22 +985,30 @@ function NewSwapRequestModal({ visible, onClose, onSuccess, toast, initialSlotId
     }
   }, [visible, initialSlotId])
 
-  // Step 1: fetch my future slots
+  // Step 1: fetch my future slots (en az 24 saat sonrası)
   useEffect(() => {
     if (!visible || !user) return
     async function fetchMySlots() {
       setLoadingMySlots(true)
       try {
-        const today = toDateStr(new Date())
+        const now = new Date()
+        const cutoff = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+        const cutoffDate = cutoff.toISOString().split('T')[0]
         const { data, error } = await supabase
           .from('schedule_slots')
           .select('id, date, start_time, end_time, departments(name)')
           .eq('staff_id', user!.id)
           .eq('status', 'active')
-          .gte('date', today)
+          .gte('date', cutoffDate)
           .order('date', { ascending: true })
         if (error) throw error
-        setMySlots((data as unknown as ShiftSlot[]) ?? [])
+
+        // Aynı gün ama 24 saatten az kalanı filtrele
+        const filtered = (data as unknown as ShiftSlot[] ?? []).filter((slot) => {
+          const slotDateTime = new Date(`${slot.date}T${slot.start_time}`)
+          return slotDateTime.getTime() > cutoff.getTime()
+        })
+        setMySlots(filtered)
       } catch (err) {
         console.error('Nöbetler yüklenemedi:', err)
         setMySlots([])
@@ -1045,22 +1053,29 @@ function NewSwapRequestModal({ visible, onClose, onSuccess, toast, initialSlotId
     fetchColleagues()
   }, [step, profile, user])
 
-  // Fetch selected person's slots
+  // Fetch selected person's slots (en az 24 saat sonrası)
   useEffect(() => {
     if (!selectedPerson) { setTheirSlots([]); return }
     async function fetchTheirSlots() {
       setLoadingTheirSlots(true)
       try {
-        const today = toDateStr(new Date())
+        const now = new Date()
+        const cutoff = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+        const cutoffDate = cutoff.toISOString().split('T')[0]
         const { data, error } = await supabase
           .from('schedule_slots')
           .select('id, date, start_time, end_time, departments(name)')
           .eq('staff_id', selectedPerson!.id)
           .eq('status', 'active')
-          .gte('date', today)
+          .gte('date', cutoffDate)
           .order('date', { ascending: true })
         if (error) throw error
-        setTheirSlots((data as unknown as ShiftSlot[]) ?? [])
+
+        const filtered = (data as unknown as ShiftSlot[] ?? []).filter((slot) => {
+          const slotDateTime = new Date(`${slot.date}T${slot.start_time}`)
+          return slotDateTime.getTime() > cutoff.getTime()
+        })
+        setTheirSlots(filtered)
       } catch (err) {
         console.error('Karşı taraf nöbetleri yüklenemedi:', err)
         setTheirSlots([])

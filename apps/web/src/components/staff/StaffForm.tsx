@@ -154,7 +154,7 @@ export function StaffForm({ staff, departments, titles, basePath, canChangeRole 
               </SelectTrigger>
               <SelectContent className="bg-slate-900 border-white/10">
                 {departments.map((d) => (
-                  <SelectItem key={d.id} value={d.id}>
+                  <SelectItem key={d.id} value={d.id} label={d.name}>
                     {d.name}
                   </SelectItem>
                 ))}
@@ -174,7 +174,7 @@ export function StaffForm({ staff, departments, titles, basePath, canChangeRole 
               </SelectTrigger>
               <SelectContent className="bg-slate-900 border-white/10">
                 {titles.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
+                  <SelectItem key={t.id} value={t.id} label={t.name}>
                     {t.name}
                   </SelectItem>
                 ))}

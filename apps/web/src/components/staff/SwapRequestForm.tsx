@@ -62,33 +62,42 @@ export function SwapRequestForm({ redirectPath = '/dashboard/staff/swap' }: Swap
 
   const today = new Date().toISOString().split('T')[0]
 
-  // 1) Kendi slotlarımı yükle
+  // 1) Kendi slotlarımı yükle (en az 24 saat sonrası)
   useEffect(() => {
     const fetchMySlots = async () => {
       setLoading(true)
       const supabase = createClient()
+      const now = new Date()
+      const cutoff = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+      const cutoffDate = cutoff.toISOString().split('T')[0]
+
       const { data } = await supabase
         .from('schedule_slots')
         .select('id, date, start_time, end_time, department_id, departments(name)')
         .eq('staff_id', profile.id)
         .eq('status', 'active')
-        .gte('date', today)
+        .gte('date', cutoffDate)
         .order('date', { ascending: true })
 
       if (data) {
-        setMySlots(data.map((s: Record<string, unknown>) => ({
+        const mapped = data.map((s: Record<string, unknown>) => ({
           id: s.id as string,
           date: s.date as string,
           start_time: s.start_time as string,
           end_time: s.end_time as string,
           department_id: s.department_id as string | null,
           department_name: (s.departments as Record<string, string> | null)?.name,
-        })))
+        }))
+        // Aynı gün için datetime bazlı filtre
+        setMySlots(mapped.filter((slot) => {
+          const slotDateTime = new Date(`${slot.date}T${slot.start_time}`)
+          return slotDateTime.getTime() > cutoff.getTime()
+        }))
       }
       setLoading(false)
     }
     fetchMySlots()
-  }, [profile.id, today])
+  }, [profile.id])
 
   // 2) Aynı kurumdaki aktif personelleri yükle (departman filtresi yok)
   const fetchStaffList = useCallback(async () => {
@@ -123,7 +132,7 @@ export function SwapRequestForm({ redirectPath = '/dashboard/staff/swap' }: Swap
     fetchStaffList()
   }, [fetchStaffList])
 
-  // 3) Seçilen personelin slotlarını yükle
+  // 3) Seçilen personelin slotlarını yükle (en az 24 saat sonrası)
   useEffect(() => {
     if (!selectedStaff) {
       setTheirSlots([])
@@ -132,27 +141,35 @@ export function SwapRequestForm({ redirectPath = '/dashboard/staff/swap' }: Swap
 
     const fetchTheirSlots = async () => {
       const supabase = createClient()
+      const now = new Date()
+      const cutoff = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+      const cutoffDate = cutoff.toISOString().split('T')[0]
+
       const { data } = await supabase
         .from('schedule_slots')
         .select('id, date, start_time, end_time, department_id, departments(name)')
         .eq('staff_id', selectedStaff)
         .eq('status', 'active')
-        .gte('date', today)
+        .gte('date', cutoffDate)
         .order('date', { ascending: true })
 
       if (data) {
-        setTheirSlots(data.map((s: Record<string, unknown>) => ({
+        const mapped = data.map((s: Record<string, unknown>) => ({
           id: s.id as string,
           date: s.date as string,
           start_time: s.start_time as string,
           end_time: s.end_time as string,
           department_id: s.department_id as string | null,
           department_name: (s.departments as Record<string, string> | null)?.name,
-        })))
+        }))
+        setTheirSlots(mapped.filter((slot) => {
+          const slotDateTime = new Date(`${slot.date}T${slot.start_time}`)
+          return slotDateTime.getTime() > cutoff.getTime()
+        }))
       }
     }
     fetchTheirSlots()
-  }, [selectedStaff, today])
+  }, [selectedStaff])
 
   const mySlotData = mySlots.find((s) => s.id === selectedMySlot)
   const staffData = staffList.find((s) => s.id === selectedStaff)

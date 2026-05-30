@@ -24,13 +24,25 @@ export function getWeekNumber(date: string): number {
 
 /**
  * İki saat dizesi arasındaki süreyi dakika olarak hesaplar.
+ * Gece yarısını geçen nöbetleri (örn: 22:00→06:00, 08:00→08:00) doğru hesaplar.
  * @param start "HH:MM"
  * @param end   "HH:MM"
  */
 export function getShiftDurationMinutes(start: string, end: string): number {
   const [sh, sm] = start.split(':').map(Number)
   const [eh, em] = end.split(':').map(Number)
-  return eh * 60 + em - (sh * 60 + sm)
+
+  let startTotal = sh * 60 + sm
+  let endTotal = eh * 60 + em
+
+  // Gece yarısını geçen nöbet (endTime <= startTime)
+  // Örn: 08:00 → 08:00 = 1440 dk (24 saat)
+  // Örn: 22:00 → 06:00 = 480 dk (8 saat)
+  if (endTotal <= startTotal) {
+    endTotal += 24 * 60
+  }
+
+  return endTotal - startTotal
 }
 
 /**
