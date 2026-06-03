@@ -7,6 +7,7 @@ import {
   Dimensions,
   Animated,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -14,6 +15,8 @@ import { useRouter } from 'expo-router'
 import { useSchedule } from '@/hooks/useSchedule'
 import { useScheduleRealtime } from '@/hooks/useRealtimeUpdates'
 import type { ScheduleSlot } from '@/hooks/useSchedule'
+import { useAuth } from '@/lib/auth/AuthContext'
+import { supabase } from '@/lib/supabase/client'
 
 // ─────────────────────────────────────────────────────────────
 // Constants
@@ -132,11 +135,11 @@ interface DayCellProps {
   dateStr: string | null
   isToday: boolean
   isSelected: boolean
-  hasSlot: boolean
+  slotTime: string | null
   onPress: () => void
 }
 
-function DayCell({ day, isToday, isSelected, hasSlot, onPress }: DayCellProps) {
+function DayCell({ day, isToday, isSelected, slotTime, onPress }: DayCellProps) {
   const cellH = CELL_SIZE * 0.82
 
   if (day === null) {
@@ -177,14 +180,10 @@ function DayCell({ day, isToday, isSelected, hasSlot, onPress }: DayCellProps) {
         <Text style={{ color: textColor, fontWeight: isToday || isSelected ? '700' : '400', fontSize: 14 }}>
           {day}
         </Text>
-        {hasSlot && (
-          <View
-            style={{
-              position: 'absolute', bottom: 3,
-              width: 5, height: 5, borderRadius: 3,
-              backgroundColor: dotColor,
-            }}
-          />
+        {slotTime && (
+          <Text style={{ color: dotColor, fontSize: 9, fontWeight: '600', marginTop: 1 }}>
+            {formatTime(slotTime)}
+          </Text>
         )}
       </View>
     </TouchableOpacity>
@@ -200,11 +199,11 @@ interface CalendarGridProps {
   month: number
   todayStr: string
   selectedDate: string
-  slotDates: Set<string>
+  slots: ScheduleSlot[]
   onDayPress: (dateStr: string) => void
 }
 
-function CalendarGrid({ year, month, todayStr, selectedDate, slotDates, onDayPress }: CalendarGridProps) {
+function CalendarGrid({ year, month, todayStr, selectedDate, slots, onDayPress }: CalendarGridProps) {
   const firstDOW = new Date(year, month, 1).getDay()
   const offset = firstDOW === 0 ? 6 : firstDOW - 1
   const daysInMonth = new Date(year, month + 1, 0).getDate()
@@ -218,6 +217,8 @@ function CalendarGrid({ year, month, todayStr, selectedDate, slotDates, onDayPre
 
   const rows: (number | null)[][] = []
   for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7))
+
+  const slotMap = new Map(slots.map(s => [s.date, s.start_time]))
 
   return (
     <View>
@@ -243,7 +244,7 @@ function CalendarGrid({ year, month, todayStr, selectedDate, slotDates, onDayPre
                 dateStr={dateStr}
                 isToday={dateStr === todayStr}
                 isSelected={dateStr === selectedDate}
-                hasSlot={dateStr !== null && slotDates.has(dateStr)}
+                slotTime={dateStr ? (slotMap.get(dateStr) ?? null) : null}
                 onPress={() => { if (dateStr) onDayPress(dateStr) }}
               />
             )
@@ -464,6 +465,90 @@ function Toast({ visible, message, translateY, opacity }: ToastProps) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Department List (Bölüm 4)
+// ─────────────────────────────────────────────────────────────
+
+function DepartmentList({ year, month }: { year: number, month: number }) {
+  const { profile } = useAuth()
+  const [deptSlots, setDeptSlots] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchDept() {
+      if (!profile?.departmentId) {
+        setLoading(false)
+        return
+      }
+      setLoading(true)
+      const monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`
+      const lastDay = new Date(year, month + 1, 0).getDate()
+      const monthEnd = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+
+      const { data, error } = await supabase
+        .from('schedule_slots')
+        .select(`
+          id, date, start_time, end_time,
+          staff:profiles!staff_id(full_name),
+          schedules!inner(status)
+        `)
+        .eq('schedules.status', 'published')
+        .eq('department_id', profile.departmentId)
+        .gte('date', monthStart)
+        .lte('date', monthEnd)
+        .in('status', ['active', 'swapped'])
+        .order('date', { ascending: true })
+
+      if (error) console.error('Department slots err:', error)
+      setDeptSlots(data ?? [])
+      setLoading(false)
+    }
+    fetchDept()
+  }, [year, month, profile?.departmentId])
+
+  if (loading) {
+    return (
+      <View className="py-10 items-center">
+        <ActivityIndicator color="#3B82F6" />
+      </View>
+    )
+  }
+
+  if (deptSlots.length === 0) {
+    return (
+      <View className="py-10 px-4 items-center gap-3">
+        <Ionicons name="calendar-outline" size={32} color="#475569" />
+        <Text className="text-center text-slate-400">Bu ay için departman nöbeti bulunamadı.</Text>
+      </View>
+    )
+  }
+
+  // Group by date
+  const grouped = deptSlots.reduce((acc, slot) => {
+    if (!acc[slot.date]) acc[slot.date] = []
+    acc[slot.date].push(slot)
+    return acc
+  }, {} as Record<string, any[]>)
+
+  return (
+    <View className="px-4 pb-10 mt-2">
+      {Object.entries(grouped).map(([date, slotsForDay]) => (
+        <View key={date} className="mb-4">
+          <Text className="text-blue-400 font-bold mb-2 ml-1 text-sm">{formatTurkishFull(date)}</Text>
+          <View className="bg-slate-800 rounded-xl overflow-hidden border border-slate-700">
+            {slotsForDay.map((s, idx) => (
+              <View key={s.id} className={`flex-row items-center justify-between p-3 ${idx !== slotsForDay.length - 1 ? 'border-b border-slate-700' : ''}`}>
+                <Text className="text-white font-medium flex-1 mr-2">{s.staff?.full_name ?? 'Bilinmiyor'}</Text>
+                <Text className="text-slate-400 text-sm">{formatTime(s.start_time)} - {formatTime(s.end_time)}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      ))}
+    </View>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
 // Main Screen
 // ─────────────────────────────────────────────────────────────
 
@@ -486,6 +571,7 @@ export default function ScheduleScreen() {
   } = useSchedule()
 
   const [refreshing, setRefreshing] = useState(false)
+  const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar')
 
   // Realtime updates with toast
   const { toastVisible, toastMessage, toastTranslateY, toastOpacity } =
@@ -528,9 +614,26 @@ export default function ScheduleScreen() {
         }
       >
         {/* ── HEADER ── */}
-        <View className="px-5 pt-4 pb-2">
-          <Text className="text-white text-2xl font-bold">Programım</Text>
-          <Text className="text-slate-400 text-sm mt-0.5">Aylık nöbet takvimi</Text>
+        <View className="px-5 pt-4 pb-2 flex-row items-center justify-between">
+          <View>
+            <Text className="text-white text-2xl font-bold">Programım</Text>
+            <Text className="text-slate-400 text-sm mt-0.5">Aylık nöbet takvimi</Text>
+          </View>
+          {/* Toggle View */}
+          <View className="flex-row bg-slate-800 rounded-lg p-1 border border-slate-700">
+            <TouchableOpacity
+              onPress={() => setViewMode('calendar')}
+              className={`px-3 py-1.5 rounded-md ${viewMode === 'calendar' ? 'bg-blue-600' : 'bg-transparent'}`}
+            >
+              <Ionicons name="calendar-outline" size={18} color={viewMode === 'calendar' ? '#fff' : '#94A3B8'} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setViewMode('list')}
+              className={`px-3 py-1.5 rounded-md ${viewMode === 'list' ? 'bg-blue-600' : 'bg-transparent'}`}
+            >
+              <Ionicons name="list-outline" size={18} color={viewMode === 'list' ? '#fff' : '#94A3B8'} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* ── MONTH NAVIGATION ── */}
@@ -578,15 +681,16 @@ export default function ScheduleScreen() {
         {loading && !refreshing ? (
           <CalendarSkeleton />
         ) : !error ? (
-          <>
-            {/* Calendar Grid */}
-            <View className="px-2 mb-3">
+          viewMode === 'calendar' ? (
+            <>
+              {/* Calendar Grid */}
+              <View className="px-2 mb-3">
               <CalendarGrid
                 year={selectedMonth.year}
                 month={selectedMonth.month}
                 todayStr={todayStr}
                 selectedDate={selectedDate}
-                slotDates={slotDates}
+                slots={slots}
                 onDayPress={setSelectedDate}
               />
             </View>
@@ -618,7 +722,10 @@ export default function ScheduleScreen() {
                 monthName={TURKISH_MONTHS[selectedMonth.month]}
               />
             )}
-          </>
+            </>
+          ) : (
+            <DepartmentList year={selectedMonth.year} month={selectedMonth.month} />
+          )
         ) : null}
 
         {/* Bottom padding */}

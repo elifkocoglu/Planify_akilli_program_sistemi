@@ -78,11 +78,14 @@ export function useScheduleRealtime(onUpdate: () => void) {
           event: '*',
           schema: 'public',
           table: 'schedule_slots',
-          filter: `staff_id=eq.${user.id}`,
+
         },
         () => {
-          onUpdateRef.current()
-          showToast('Program güncellendi')
+          // 500ms bekleme: veritabanının güncellenmesi için
+          setTimeout(() => {
+            onUpdateRef.current()
+            showToast('Program güncellendi')
+          }, 500)
         }
       )
       .subscribe()

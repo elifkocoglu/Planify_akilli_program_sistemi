@@ -78,7 +78,7 @@ export function useSchedule() {
         .eq('schedules.status', 'published')
         .gte('date', monthStart)
         .lte('date', monthEnd)
-        .eq('status', 'active')
+        .in('status', ['active', 'swapped'])
         .order('date', { ascending: true })
 
 
@@ -128,7 +128,8 @@ export function useSchedule() {
           table: 'schedule_slots',
         },
         () => {
-          fetchSlots()
+          // 500ms bekleme: veritabanının takas sonrası güncellenmesi için
+          setTimeout(() => fetchSlots(), 500)
         }
       )
       .subscribe()

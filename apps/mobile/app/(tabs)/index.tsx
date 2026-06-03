@@ -182,7 +182,7 @@ export default function DashboardScreen() {
         .select('*, schedules!inner(title, status), departments(name)')
         .eq('staff_id', user.id)
         .eq('date', today)
-        .eq('status', 'active')
+        .in('status', ['active', 'swapped'])
         .eq('schedules.status', 'published')
         .maybeSingle()
 
@@ -195,7 +195,7 @@ export default function DashboardScreen() {
         .eq('staff_id', user.id)
         .gte('date', weekStart)
         .lte('date', weekEnd)
-        .eq('status', 'active')
+        .in('status', ['active', 'swapped'])
 
       if (weekErr) throw weekErr
 
@@ -206,7 +206,7 @@ export default function DashboardScreen() {
         .eq('staff_id', user.id)
         .gte('date', monthStart)
         .lte('date', monthEnd)
-        .eq('status', 'active')
+        .in('status', ['active', 'swapped'])
 
       if (monthErr) throw monthErr
 
@@ -217,7 +217,7 @@ export default function DashboardScreen() {
         .eq('staff_id', user.id)
         .gte('date', today)
         .lte('date', next7days)
-        .eq('status', 'active')
+        .in('status', ['active', 'swapped'])
         .eq('schedules.status', 'published')
         .order('date', { ascending: true })
 
@@ -293,7 +293,7 @@ export default function DashboardScreen() {
           table: 'schedule_slots',
         },
         () => {
-          fetchDashboard()
+          setTimeout(() => fetchDashboard(), 500)
         }
       )
       .subscribe()
