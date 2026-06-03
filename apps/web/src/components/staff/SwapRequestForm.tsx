@@ -256,11 +256,11 @@ export function SwapRequestForm({ redirectPath = '/dashboard/staff/swap' }: Swap
       {step === 1 && (
         <div className="space-y-4">
           <Label className="text-slate-300 text-base">Takas etmek istediğiniz nöbet:</Label>
-          <div className="space-y-2">
+          <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
             {mySlots.map((slot) => (
               <label
                 key={slot.id}
-                className={`flex items-center gap-4 rounded-lg p-4 border cursor-pointer transition-all ${
+                className={`relative flex items-center gap-4 rounded-lg p-4 border cursor-pointer transition-all ${
                   selectedMySlot === slot.id
                     ? 'border-blue-500/50 bg-blue-500/10'
                     : 'border-white/10 bg-white/5 hover:border-white/20'
@@ -352,11 +352,11 @@ export function SwapRequestForm({ redirectPath = '/dashboard/staff/swap' }: Swap
               {theirSlots.length === 0 ? (
                 <p className="text-sm text-slate-400 py-4">Bu personelin gelecek nöbeti bulunmuyor.</p>
               ) : (
-                <div className="space-y-2 max-h-60 overflow-y-auto">
+                <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
                   {theirSlots.map((slot) => (
                     <label
                       key={slot.id}
-                      className={`flex items-center gap-4 rounded-lg p-3 border transition-all ${
+                      className={`relative flex items-center gap-4 rounded-lg p-3 border transition-all ${
                         slot.isOnLeave
                           ? 'opacity-60 bg-slate-800/50 border-white/5 cursor-not-allowed'
                           : selectedTheirSlot === slot.id
