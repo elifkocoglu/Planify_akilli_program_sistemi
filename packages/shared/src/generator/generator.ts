@@ -11,6 +11,39 @@ import {
 } from '../utils'
 
 /**
+ * Gece yarısını geçen nöbetlerde bitiş saatini hesaplar.
+ *
+ * Örnek: startTime="09:00", durationMinutes=1440 (24 saat)
+ *   → endTime="09:00", nextDay=true
+ *
+ * PostgreSQL TIME tipi 24:00'ı geçemez; bu helper ile
+ * endTime her zaman 00:00-23:59 aralığında tutulur.
+ */
+function calculateEndTime(
+  startTime: string,
+  durationMinutes: number
+): { endTime: string; nextDay: boolean } {
+  const [h, m] = startTime.split(':').map(Number)
+  const totalMinutes = h * 60 + m + durationMinutes
+
+  const endH = Math.floor(totalMinutes / 60) % 24
+  const endM = totalMinutes % 60
+  const nextDay = totalMinutes >= 24 * 60
+
+  return {
+    endTime: `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`,
+    nextDay,
+  }
+}
+
+/** "YYYY-MM-DD" formatındaki tarihe bir gün ekler */
+function addOneDay(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00')
+  d.setDate(d.getDate() + 1)
+  return d.toISOString().split('T')[0]
+}
+
+/**
  * Otomatik program üretici.
  * Kısıtlara uygun şekilde personellere slot atar.
  *
@@ -59,13 +92,18 @@ export function generateSchedule(input: GeneratorInput): GeneratorResult {
     const dayOfWeek = getDayOfWeek(date)
 
     for (let slotIndex = 0; slotIndex < dailySlotCount; slotIndex++) {
-      // Slot zamanını hesapla
+      // Slot başlangıç zamanını hesapla
       const [startH, startM] = startHour.split(':').map(Number)
       const slotStartMinutes = startH * 60 + startM + slotIndex * slotDuration
-      const slotEndMinutes = slotStartMinutes + slotDuration
 
-      const slotStartTime = `${String(Math.floor(slotStartMinutes / 60)).padStart(2, '0')}:${String(slotStartMinutes % 60).padStart(2, '0')}`
-      const slotEndTime = `${String(Math.floor(slotEndMinutes / 60)).padStart(2, '0')}:${String(slotEndMinutes % 60).padStart(2, '0')}`
+      const slotStartTime = `${String(Math.floor(slotStartMinutes / 60) % 24).padStart(2, '0')}:${String(slotStartMinutes % 60).padStart(2, '0')}`
+
+      // Slot bitiş zamanını hesapla — gece yarısını geçerse ertesi gün
+      const { endTime: slotEndTime, nextDay } = calculateEndTime(
+        slotStartTime,
+        slotDuration
+      )
+      const slotEndDate = nextDay ? addOneDay(date) : date
 
       // Personelleri en az nöbet tutandan en çok tutana sırala
       const sortedStaff = [...staff].sort((a, b) => {
@@ -85,6 +123,7 @@ export function generateSchedule(input: GeneratorInput): GeneratorResult {
           departmentId,
           titleId: member.titleId,
           date,
+          endDate: slotEndDate !== date ? slotEndDate : undefined,
           dayOfWeek,
           startTime: slotStartTime,
           endTime: slotEndTime,
@@ -108,7 +147,7 @@ export function generateSchedule(input: GeneratorInput): GeneratorResult {
       if (!assigned) {
         unresolved.push({
           date,
-          reason: `${date} ${slotStartTime}-${slotEndTime} için uygun personel bulunamadı`,
+          reason: `${date} ${slotStartTime}-${slotEndTime}${nextDay ? ' (+1 gün)' : ''} için uygun personel bulunamadı`,
           attemptedStaffIds,
         })
       }

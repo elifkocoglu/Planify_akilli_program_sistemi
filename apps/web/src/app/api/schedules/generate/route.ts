@@ -182,6 +182,7 @@ export async function POST(request: Request) {
         room_id: slot.roomId ?? null,
         title_id: slot.titleId ?? null,
         date: slot.date,
+        end_date: slot.endDate ?? null,   // gece yarısını geçen nöbetler için
         day_of_week: slot.dayOfWeek,
         start_time: slot.startTime,
         end_time: slot.endTime,

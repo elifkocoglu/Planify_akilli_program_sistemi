@@ -23,16 +23,20 @@ export function validateMinRestHours(
     })
 
   for (const slot of staffSlots) {
+    // Gece yarısını geçen nöbetlerde endDate farklı olabilir
+    const slotEndDate = slot.endDate ?? slot.date
+    const candidateEndDate = candidateSlot.endDate ?? candidateSlot.date
+
     // Mevcut slot bitiş → aday slot başlangıç
     const gap1 = getMinutesBetween(
-      slot.date,
+      slotEndDate,
       slot.endTime,
       candidateSlot.date,
       candidateSlot.startTime
     )
     // Aday slot bitiş → mevcut slot başlangıç
     const gap2 = getMinutesBetween(
-      candidateSlot.date,
+      candidateEndDate,
       candidateSlot.endTime,
       slot.date,
       slot.startTime
