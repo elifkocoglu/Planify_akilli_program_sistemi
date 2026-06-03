@@ -55,6 +55,7 @@ interface ShiftSlot {
   start_time: string
   end_time: string
   departments?: { name: string } | null
+  isOnLeave?: boolean
 }
 
 interface StaffMember {
@@ -1083,9 +1084,20 @@ function NewSwapRequestModal({ visible, onClose, onSuccess, toast, initialSlotId
           .order('date', { ascending: true })
         if (error) throw error
 
+        const { data: leaves } = await supabase
+          .from('leave_requests')
+          .select('start_date, end_date')
+          .eq('staff_id', selectedPerson!.id)
+          .eq('status', 'approved')
+
         const filtered = (data as unknown as ShiftSlot[] ?? []).filter((slot) => {
           const slotDateTime = new Date(`${slot.date}T${slot.start_time}`)
           return slotDateTime.getTime() > cutoff.getTime()
+        }).map(slot => {
+          const isOnLeave = leaves?.some(leave => 
+            slot.date >= leave.start_date && slot.date <= leave.end_date
+          )
+          return { ...slot, isOnLeave }
         })
         setTheirSlots(filtered)
       } catch (err) {

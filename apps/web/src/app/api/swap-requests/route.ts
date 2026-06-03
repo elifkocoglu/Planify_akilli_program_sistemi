@@ -105,6 +105,58 @@ export async function POST(request: Request) {
       )
     }
 
+    // Slot tarihlerini öğrenmek için slotları çek
+    const { data: slots, error: slotsError } = await supabase
+      .from('schedule_slots')
+      .select('id, date')
+      .in('id', [requesterSlotId, receiverSlotId])
+
+    if (slotsError || !slots || slots.length !== 2) {
+      return NextResponse.json(
+        { success: false, error: 'Takas edilecek nöbet bilgileri bulunamadı' },
+        { status: 400 }
+      )
+    }
+
+    const requesterSlot = slots.find(s => s.id === requesterSlotId)
+    const receiverSlot = slots.find(s => s.id === receiverSlotId)
+
+    if (requesterSlot && receiverSlot) {
+      // Receiver'ın seçilen slot tarihi için izin kontrolü
+      const { data: receiverLeave } = await supabase
+        .from('leave_requests')
+        .select('id, start_date, end_date')
+        .eq('staff_id', receiverId)
+        .eq('status', 'approved')
+        .lte('start_date', receiverSlot.date)
+        .gte('end_date', receiverSlot.date)
+        .single()
+
+      if (receiverLeave) {
+        return NextResponse.json(
+          { success: false, error: 'Bu personel seçilen tarihte izinli olduğu için takas yapılamaz' },
+          { status: 400 }
+        )
+      }
+
+      // Requester'ın kendi slot tarihi için de kontrol
+      const { data: requesterLeave } = await supabase
+        .from('leave_requests')
+        .select('id')
+        .eq('staff_id', profile.id)
+        .eq('status', 'approved')
+        .lte('start_date', requesterSlot.date)
+        .gte('end_date', requesterSlot.date)
+        .single()
+
+      if (requesterLeave) {
+        return NextResponse.json(
+          { success: false, error: 'Seçilen tarihte izniniz olduğu için takas yapamazsınız' },
+          { status: 400 }
+        )
+      }
+    }
+
     // Talebi oluştur
     const { data: swapRequest, error: insertError } = await supabase
       .from('swap_requests')

@@ -10,24 +10,32 @@ export function validateMaxShiftsPerMonth(
   constraint: Constraint,
   candidateSlot: ScheduleSlot
 ): ValidationResult {
-  const max = (constraint.value as { max: number }).max ?? Infinity
-  const candidateMonth = candidateSlot.date.slice(0, 7) // "YYYY-MM"
-
-  const count = slots.filter(
-    (s) =>
-      s.staffId === candidateSlot.staffId &&
-      s.status === 'active' &&
-      s.date.slice(0, 7) === candidateMonth
-  ).length
-
+  const max = (constraint.value as any).max as number
+  
+  // Aynı ay + aynı staff + active status
+  const candidateMonth = candidateSlot.date.substring(0, 7) // "2025-01"
+  
+  const monthlySlots = slots.filter(slot =>
+    slot.staffId === candidateSlot.staffId &&
+    slot.date.substring(0, 7) === candidateMonth &&
+    slot.status === 'active'
+  )
+  
+  if (monthlySlots.length >= max) {
+    return {
+      isValid: false,
+      constraintId: constraint.id,
+      constraintType: constraint.type,
+      staffId: candidateSlot.staffId,
+      message: `Bu personel bu ay maksimum ${max} nöbet limitine ulaştı`
+    }
+  }
+  
   return {
-    isValid: count < max,
+    isValid: true,
     constraintId: constraint.id,
-    constraintType: 'max_shifts_per_month',
+    constraintType: constraint.type,
     staffId: candidateSlot.staffId,
-    message:
-      count >= max
-        ? `Bu personel bu ay maksimum ${max} nöbet limitine ulaştı`
-        : '',
+    message: ''
   }
 }

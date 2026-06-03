@@ -136,15 +136,38 @@ export async function POST(request: Request) {
       monthlyMaxShifts: p.monthly_max_shifts ?? undefined,
     }))
 
-    const constraints: Constraint[] = (dbConstraints ?? []).map((c) => ({
+    const mappedConstraints: Constraint[] = (dbConstraints ?? []).map((c) => ({
       id: c.id,
       institutionId: c.institution_id,
-      departmentId: c.department_id ?? undefined,
-      staffId: c.staff_id ?? undefined,
+      departmentId: c.department_id,
+      staffId: c.staff_id,
       type: c.type as ConstraintType,
-      value: (c.value as Record<string, unknown>) ?? {},
+      value: c.value as Record<string, unknown>,
       isActive: c.is_active,
     }))
+
+    staff.forEach((s) => {
+      if (s.monthlyMaxShifts) {
+        mappedConstraints.push({
+          id: `auto-monthly-${s.id}`,
+          institutionId: schedule.institution_id,
+          staffId: s.id,
+          type: 'max_shifts_per_month',
+          value: { max: s.monthlyMaxShifts },
+          isActive: true,
+        })
+      }
+      if (s.weeklyMaxHours) {
+        mappedConstraints.push({
+          id: `auto-weekly-${s.id}`,
+          institutionId: schedule.institution_id,
+          staffId: s.id,
+          type: 'max_hours_per_week',
+          value: { hours: s.weeklyMaxHours },
+          isActive: true,
+        })
+      }
+    })
 
     const existingSlots: ScheduleSlot[] = (dbSlots ?? []).map((s) => ({
       id: s.id,
@@ -163,7 +186,7 @@ export async function POST(request: Request) {
     // 8. generateSchedule() çağır
     const generatorInput: GeneratorInput = {
       staff,
-      constraints,
+      constraints: mappedConstraints,
       existingSlots,
       approvedLeaves,
       dateRange: {

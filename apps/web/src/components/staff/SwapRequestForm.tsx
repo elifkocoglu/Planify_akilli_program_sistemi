@@ -24,6 +24,7 @@ interface SlotOption {
   end_time: string
   department_id: string | null
   department_name?: string
+  isOnLeave?: boolean
 }
 
 interface StaffOption {
@@ -154,14 +155,29 @@ export function SwapRequestForm({ redirectPath = '/dashboard/staff/swap' }: Swap
         .order('date', { ascending: true })
 
       if (data) {
-        const mapped = data.map((s: Record<string, unknown>) => ({
-          id: s.id as string,
-          date: s.date as string,
-          start_time: s.start_time as string,
-          end_time: s.end_time as string,
-          department_id: s.department_id as string | null,
-          department_name: (s.departments as Record<string, string> | null)?.name,
-        }))
+        // Fetch leaves
+        const { data: leaves } = await supabase
+          .from('leave_requests')
+          .select('start_date, end_date')
+          .eq('staff_id', selectedStaff)
+          .eq('status', 'approved')
+
+        const mapped = data.map((s: Record<string, unknown>) => {
+          const slotDate = s.date as string
+          const isOnLeave = leaves?.some(leave => 
+            slotDate >= leave.start_date && slotDate <= leave.end_date
+          )
+
+          return {
+            id: s.id as string,
+            date: slotDate,
+            start_time: s.start_time as string,
+            end_time: s.end_time as string,
+            department_id: s.department_id as string | null,
+            department_name: (s.departments as Record<string, string> | null)?.name,
+            isOnLeave
+          }
+        })
         setTheirSlots(mapped.filter((slot) => {
           const slotDateTime = new Date(`${slot.date}T${slot.start_time}`)
           return slotDateTime.getTime() > cutoff.getTime()
@@ -340,10 +356,12 @@ export function SwapRequestForm({ redirectPath = '/dashboard/staff/swap' }: Swap
                   {theirSlots.map((slot) => (
                     <label
                       key={slot.id}
-                      className={`flex items-center gap-4 rounded-lg p-3 border cursor-pointer transition-all ${
-                        selectedTheirSlot === slot.id
-                          ? 'border-blue-500/50 bg-blue-500/10'
-                          : 'border-white/10 bg-white/5 hover:border-white/20'
+                      className={`flex items-center gap-4 rounded-lg p-3 border transition-all ${
+                        slot.isOnLeave
+                          ? 'opacity-60 bg-slate-800/50 border-white/5 cursor-not-allowed'
+                          : selectedTheirSlot === slot.id
+                            ? 'border-blue-500/50 bg-blue-500/10 cursor-pointer'
+                            : 'border-white/10 bg-white/5 hover:border-white/20 cursor-pointer'
                       }`}
                     >
                       <input
@@ -351,17 +369,27 @@ export function SwapRequestForm({ redirectPath = '/dashboard/staff/swap' }: Swap
                         name="theirSlot"
                         value={slot.id}
                         checked={selectedTheirSlot === slot.id}
-                        onChange={() => setSelectedTheirSlot(slot.id)}
+                        onChange={() => !slot.isOnLeave && setSelectedTheirSlot(slot.id)}
+                        disabled={slot.isOnLeave}
                         className="sr-only"
                       />
                       <div className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 ${
                         selectedTheirSlot === slot.id ? 'border-blue-500 bg-blue-500' : 'border-white/30'
                       }`} />
-                      <div>
-                        <p className="text-sm text-white">{formatDate(slot.date)}</p>
-                        <span className="text-xs text-slate-400">
-                          {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
-                        </span>
+                      <div className="flex-1 flex items-center justify-between">
+                        <div>
+                          <p className={`text-sm ${slot.isOnLeave ? 'text-slate-500 line-through' : 'text-white'}`}>
+                            {formatDate(slot.date)}
+                          </p>
+                          <span className="text-xs text-slate-400">
+                            {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
+                          </span>
+                        </div>
+                        {slot.isOnLeave && (
+                          <div className="bg-red-500/10 px-2 py-0.5 rounded">
+                            <span className="text-[10px] font-semibold text-red-500">İzinli</span>
+                          </div>
+                        )}
                       </div>
                     </label>
                   ))}
