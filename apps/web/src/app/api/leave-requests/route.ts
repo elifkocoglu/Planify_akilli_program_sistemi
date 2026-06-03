@@ -127,6 +127,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
+    const cancelRequested = searchParams.get('cancel_requested')
 
     const view = searchParams.get('view')
 
@@ -144,6 +145,10 @@ export async function GET(request: Request) {
 
     if (status) {
       query = query.eq('status', status)
+    }
+
+    if (cancelRequested === 'true') {
+      query = query.eq('cancel_requested', true)
     }
 
     query = query.order('created_at', { ascending: false })

@@ -536,6 +536,18 @@ function LeaveRequestCard({ item, onCancel, cancellingId, onCancelRequest, cance
         </TouchableOpacity>
       )}
 
+      {/* Zaten iptal talebi gönderilmişse: disabled buton göster */}
+      {item.status === 'approved' && item.cancel_requested && (
+        <TouchableOpacity
+          disabled
+          style={{ marginTop: 10, borderWidth: 1, borderColor: 'rgba(251,146,60,0.25)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(251,146,60,0.06)', opacity: 0.7 }}
+        >
+          <Ionicons name="time-outline" size={14} color="#FB923C" />
+          <Text style={{ color: '#FB923C', fontSize: 12, fontWeight: '600' }}>İptal Talebi Gönderildi (Beklemede)</Text>
+        </TouchableOpacity>
+      )}
+
+
       {item.reason ? (
         <Text style={{ color: '#64748B', fontSize: 12, marginTop: 8, lineHeight: 18 }} numberOfLines={2}>{item.reason}</Text>
       ) : null}

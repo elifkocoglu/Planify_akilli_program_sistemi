@@ -11,6 +11,7 @@ import {
   ArrowRightLeft,
   ArrowRight,
   CalendarPlus,
+  AlertTriangle,
 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
@@ -38,6 +39,7 @@ interface DashboardStats {
   pendingLeaves: number
   pendingSwaps: number
   pendingLeaveRequests: PendingLeaveRequest[]
+  cancelRequestedLeaves: PendingLeaveRequest[]
   recentSchedules: Array<{
     id: string
     title: string
@@ -56,16 +58,18 @@ export default function InstitutionAdminDashboardPage() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        const [draftRes, pubRes, leavesRes, swapsRes] = await Promise.all([
+        const [draftRes, pubRes, leavesRes, swapsRes, cancelRes] = await Promise.all([
           fetch('/api/schedules?status=draft'),
           fetch('/api/schedules?status=published'),
           fetch('/api/leave-requests?status=pending&view=admin'),
           fetch('/api/swap-requests?status=approved_by_receiver'),
+          fetch('/api/leave-requests?status=approved&cancel_requested=true&view=admin'),
         ])
         const draftData = await draftRes.json()
         const pubData = await pubRes.json()
         const leavesData = await leavesRes.json()
         const swapsData = await swapsRes.json()
+        const cancelData = await cancelRes.json()
 
         setStats({
           draftCount: draftData.schedules?.length ?? 0,
@@ -74,6 +78,7 @@ export default function InstitutionAdminDashboardPage() {
           activeStaff: 0,
           pendingLeaves: leavesData.leaveRequests?.length ?? 0,
           pendingLeaveRequests: (leavesData.leaveRequests ?? []).slice(0, 5),
+          cancelRequestedLeaves: (cancelData.leaveRequests ?? []).slice(0, 5),
           pendingSwaps: swapsData.swapRequests?.length ?? 0,
           recentSchedules: [
             ...(draftData.schedules ?? []),
@@ -92,6 +97,7 @@ export default function InstitutionAdminDashboardPage() {
           activeStaff: 0,
           pendingLeaves: 0,
           pendingLeaveRequests: [],
+          cancelRequestedLeaves: [],
           pendingSwaps: 0,
           recentSchedules: [],
         })
@@ -264,8 +270,84 @@ export default function InstitutionAdminDashboardPage() {
           </div>
         </div>
 
-        {/* Pending Requests */}
-        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02]">
+        {/* Cancel Requested Leaves — full width */}
+        {(stats?.cancelRequestedLeaves?.length ?? 0) > 0 && (
+          <div className="rounded-xl border border-orange-500/20 bg-orange-500/[0.03] lg:col-span-2">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-orange-500/10">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-orange-400" />
+                <h2 className="text-sm font-semibold text-orange-300">İptal Talebi Bekleyen İzinler</h2>
+              </div>
+              <Badge variant="outline" className="bg-orange-500/15 text-orange-400 border-orange-500/20">
+                {stats?.cancelRequestedLeaves.length} talep
+              </Badge>
+            </div>
+            <div className="divide-y divide-white/[0.04]">
+              {stats?.cancelRequestedLeaves.map((lr) => {
+                const typeLabels: Record<string, string> = {
+                  annual: 'Yıllık İzin',
+                  sick: 'Rapor',
+                  unpaid: 'Ücretsiz İzin',
+                  maternity: 'Doğum İzni',
+                  administrative: 'İdari İzin',
+                }
+                return (
+                  <div key={lr.id} className="flex items-center justify-between px-5 py-3 hover:bg-orange-500/[0.02] transition-colors">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-white truncate">
+                        {lr.profiles?.full_name ?? 'Personel'}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {typeLabels[lr.type] ?? lr.type} · {lr.start_date} → {lr.end_date}
+                      </p>
+                      {lr.profiles?.departments?.name && (
+                        <p className="text-xs text-slate-600 mt-0.5">{lr.profiles.departments.name}</p>
+                      )}
+                      {lr.cancel_reason && (
+                        <p className="text-xs text-orange-300/70 mt-0.5 italic">Sebep: {lr.cancel_reason}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 text-xs h-7 px-2"
+                        onClick={async () => {
+                          await fetch(`/api/leave-requests/${lr.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'approve_cancel_request' }),
+                          })
+                          window.location.reload()
+                        }}
+                      >
+                        İptali Onayla
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs h-7 px-2"
+                        onClick={async () => {
+                          await fetch(`/api/leave-requests/${lr.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'reject_cancel_request' }),
+                          })
+                          window.location.reload()
+                        }}
+                      >
+                        İptali Reddet
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Pending Requests — full width */}
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] lg:col-span-2">
           <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
             <h2 className="text-sm font-semibold text-white">Bekleyen İzin Talepleri</h2>
             {(stats?.pendingLeaves ?? 0) > 0 && (

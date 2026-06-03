@@ -65,3 +65,96 @@ export async function GET(request: Request) {
     )
   }
 }
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/swap-requests — Yeni takas talebi oluştur
+// Body: { requesterSlotId, receiverSlotId, receiverId }
+// ─────────────────────────────────────────────────────────────
+export async function POST(request: Request) {
+  try {
+    const auth = await requireAuth()
+    if (isAuthError(auth)) return auth
+    const { profile, supabase } = auth
+
+    const body = await request.json()
+    const { requesterSlotId, receiverSlotId, receiverId } = body as {
+      requesterSlotId?: string
+      receiverSlotId?: string
+      receiverId?: string
+    }
+
+    if (!requesterSlotId || !receiverSlotId || !receiverId) {
+      return NextResponse.json(
+        { success: false, error: 'requesterSlotId, receiverSlotId ve receiverId zorunludur' },
+        { status: 400 }
+      )
+    }
+
+    // Aynı slot için bekleyen talep var mı kontrol et
+    const { data: existing } = await supabase
+      .from('swap_requests')
+      .select('id')
+      .eq('requester_slot_id', requesterSlotId)
+      .in('status', ['pending', 'approved_by_receiver'])
+      .limit(1)
+
+    if (existing && existing.length > 0) {
+      return NextResponse.json(
+        { success: false, error: 'Bu nöbet için zaten bekleyen bir takas talebi var' },
+        { status: 400 }
+      )
+    }
+
+    // Talebi oluştur
+    const { data: swapRequest, error: insertError } = await supabase
+      .from('swap_requests')
+      .insert({
+        requester_id: profile.id,
+        receiver_id: receiverId,
+        requester_slot_id: requesterSlotId,
+        receiver_slot_id: receiverSlotId,
+        status: 'pending',
+      })
+      .select()
+      .single()
+
+    if (insertError) {
+      return NextResponse.json(
+        { success: false, error: `Takas talebi oluşturulamadı: ${insertError.message}` },
+        { status: 500 }
+      )
+    }
+
+    // Alıcıya bildirim gönder
+    await supabase.from('notifications').insert({
+      user_id: receiverId,
+      institution_id: profile.institution_id,
+      type: 'swap_request',
+      title: 'Yeni Takas Talebi',
+      body: `${profile.full_name} size bir takas talebi gönderdi.`,
+      related_id: swapRequest.id,
+      is_read: false,
+    })
+
+    // Push bildirim (sessizce)
+    try {
+      await supabase.functions.invoke('send-push-notification', {
+        body: {
+          userIds: [receiverId],
+          title: 'Yeni Takas Talebi 🔄',
+          body: `${profile.full_name} size bir takas talebi gönderdi.`,
+          data: { screen: '/(tabs)/requests' },
+        },
+      })
+    } catch { /* sessiz */ }
+
+    return NextResponse.json({ success: true, swapRequest }, { status: 201 })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Bilinmeyen bir hata oluştu'
+    return NextResponse.json(
+      { success: false, error: message },
+      { status: 500 }
+    )
+  }
+}
+
