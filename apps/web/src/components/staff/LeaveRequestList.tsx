@@ -36,9 +36,10 @@ const typeConfig: Record<string, { label: string; color: string }> = {
 }
 
 const statusConfig: Record<string, { label: string; color: string }> = {
-  pending: { label: 'Bekliyor', color: 'border-yellow-500/30 text-yellow-400 bg-yellow-500/10' },
-  approved: { label: 'Onaylandı', color: 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10' },
-  rejected: { label: 'Reddedildi', color: 'border-red-500/30 text-red-400 bg-red-500/10' },
+  pending:   { label: 'Bekliyor',     color: 'border-yellow-500/30 text-yellow-400 bg-yellow-500/10' },
+  approved:  { label: 'Onaylandı',   color: 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10' },
+  rejected:  { label: 'Reddedildi',  color: 'border-red-500/30 text-red-400 bg-red-500/10' },
+  cancelled: { label: 'İptal Edildi', color: 'border-slate-500/30 text-slate-400 bg-slate-500/10' },
 }
 
 function formatDate(dateStr: string): string {

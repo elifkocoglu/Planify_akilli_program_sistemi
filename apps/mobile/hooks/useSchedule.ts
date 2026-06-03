@@ -112,6 +112,9 @@ export function useSchedule() {
   }, [fetchSlots])
 
   // ── Realtime: slot değişikliklerini dinle (takas sonrası güncelleme) ───
+  // NOT: filter kaldırıldı — takas sonrası staff_id değişince eski filter
+  // artık eşleşmiyordu. Tüm eventleri dinleyip fetchSlots() çağırıyoruz;
+  // fetchSlots içinde zaten staff_id = user.id filtresi mevcut.
   useEffect(() => {
     if (!user?.id) return
 
@@ -120,10 +123,9 @@ export function useSchedule() {
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*', // INSERT, UPDATE, DELETE
           schema: 'public',
           table: 'schedule_slots',
-          filter: `staff_id=eq.${user.id}`,
         },
         () => {
           fetchSlots()

@@ -277,6 +277,32 @@ export default function DashboardScreen() {
     fetchDashboard()
   }, [fetchDashboard])
 
+  // ── Realtime: takas sonrası dashboard'u güncelle ─────────
+  // staff_id filtresi yok — takas sonrası slot'un staff_id'si değişince
+  // eski filter eşleşmiyordu. Herhangi bir slot değişiminde fetchDashboard çağrılır.
+  useEffect(() => {
+    if (!user?.id) return
+
+    const channel = supabase
+      .channel(`dashboard-slots-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'schedule_slots',
+        },
+        () => {
+          fetchDashboard()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user?.id, fetchDashboard])
+
   const onRefresh = useCallback(() => {
     setRefreshing(true)
     fetchDashboard()
