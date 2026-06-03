@@ -7,6 +7,11 @@ export interface GeneratorInput {
   constraints: Constraint[]
   /** Varsa mevcut atanmış slotlar */
   existingSlots: ScheduleSlot[]
+  approvedLeaves?: {
+    staffId: string
+    startDate: string
+    endDate: string
+  }[]
   dateRange: {
     /** "YYYY-MM-DD" */
     start: string

@@ -80,6 +80,7 @@ export async function POST(_request: Request, { params }: RouteParams) {
       .select('id')
       .eq('department_id', schedule.department_id)
       .eq('is_active', true)
+      .neq('role', 'super_admin')
 
     let notifiedCount = 0
 

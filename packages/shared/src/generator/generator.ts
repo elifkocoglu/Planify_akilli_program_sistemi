@@ -43,6 +43,21 @@ function addOneDay(dateStr: string): string {
   return d.toISOString().split('T')[0]
 }
 
+/** Personelin belirtilen tarihte onaylı izni olup olmadığını kontrol eder */
+function isOnLeave(
+  staffId: string,
+  date: string,
+  leaves: GeneratorInput['approvedLeaves']
+): boolean {
+  if (!leaves) return false
+  return leaves.some(
+    (leave) =>
+      leave.staffId === staffId &&
+      date >= leave.startDate &&
+      date <= leave.endDate
+  )
+}
+
 /**
  * Otomatik program üretici.
  * Kısıtlara uygun şekilde personellere slot atar.
@@ -116,6 +131,10 @@ export function generateSchedule(input: GeneratorInput): GeneratorResult {
       const attemptedStaffIds: string[] = []
 
       for (const member of sortedStaff) {
+        if (isOnLeave(member.id, date, input.approvedLeaves)) {
+          continue // İzinliyse bu personeli atla
+        }
+
         const candidateSlot: ScheduleSlot = {
           id: `gen-${scheduleId}-${slotCounter++}`,
           scheduleId,

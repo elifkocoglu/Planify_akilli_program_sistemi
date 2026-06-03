@@ -106,6 +106,26 @@ export async function POST(request: Request) {
       )
     }
 
+    // 6d. İzinleri çek (approvedLeaves)
+    const { data: dbLeaves, error: leavesError } = await supabase
+      .from('leave_requests')
+      .select('staff_id, start_date, end_date')
+      .eq('institution_id', schedule.institution_id)
+      .eq('status', 'approved')
+
+    if (leavesError) {
+      return NextResponse.json(
+        { success: false, error: `İzinler alınamadı: ${leavesError.message}` },
+        { status: 500 }
+      )
+    }
+
+    const approvedLeaves = (dbLeaves ?? []).map((l) => ({
+      staffId: l.staff_id,
+      startDate: l.start_date,
+      endDate: l.end_date,
+    }))
+
     // 7. Supabase verisini @planify/shared tiplerine dönüştür
     const staff: StaffMember[] = (dbProfiles ?? []).map((p) => ({
       id: p.id,
@@ -145,6 +165,7 @@ export async function POST(request: Request) {
       staff,
       constraints,
       existingSlots,
+      approvedLeaves,
       dateRange: {
         start: schedule.start_date,
         end: schedule.end_date,
