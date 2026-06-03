@@ -1,15 +1,97 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Bell } from 'lucide-react'
 import { useUser } from '@/lib/auth/useUser'
 import { SidebarNav } from './SidebarNav'
 import { MobileSidebar } from './MobileSidebar'
 import { SignOutButton } from '@/components/auth/SignOutButton'
+import { createClient } from '@/lib/supabase/client'
+import type { UserRole } from '@/lib/auth/getRedirectPath'
 
 const roleLabels: Record<string, string> = {
   super_admin: 'Süper Admin',
   institution_admin: 'Kurum Yöneticisi',
   department_admin: 'Bölüm Yöneticisi',
   staff: 'Personel',
+}
+
+/** Role'e göre bildirim sayfası URL'i */
+function getNotificationsPath(role: UserRole): string {
+  if (role === 'institution_admin') return '/dashboard/admin/notifications'
+  if (role === 'department_admin') return '/dashboard/dept-admin/notifications'
+  return '/dashboard/staff/notifications'
+}
+
+/** Header'da okunmamış bildirim sayısını gösteren bell ikonu */
+function NotificationBell({ role }: { role: UserRole }) {
+  const { profile } = useUser()
+  const router = useRouter()
+  const [unread, setUnread] = useState(0)
+
+  useEffect(() => {
+    const supabase = createClient()
+
+    // İlk yükleme
+    const fetchUnread = async () => {
+      const { count } = await supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', profile.id)
+        .eq('is_read', false)
+      setUnread(count ?? 0)
+    }
+    fetchUnread()
+
+    // Realtime — yeni INSERT → count arttır
+    const channel = supabase
+      .channel(`bell-${profile.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${profile.id}`,
+        },
+        () => setUnread((prev) => prev + 1)
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${profile.id}`,
+        },
+        () => {
+          // Okundu işaretlenince yeniden say
+          fetchUnread()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [profile.id])
+
+  return (
+    <button
+      onClick={() => router.push(getNotificationsPath(role))}
+      className="relative p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+      aria-label="Bildirimler"
+      id="header-notifications-bell"
+    >
+      <Bell className="w-5 h-5" />
+      {unread > 0 && (
+        <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold px-1 leading-none">
+          {unread > 99 ? '99+' : unread}
+        </span>
+      )}
+    </button>
+  )
 }
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -71,8 +153,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             {/* Logo (mobile) */}
             <span className="font-bold text-white md:hidden">Planify</span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex flex-col items-end">
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:flex flex-col items-end mr-1">
               <span className="text-sm font-medium text-white leading-none">
                 {profile.full_name ?? 'Kullanıcı'}
               </span>
@@ -80,6 +162,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                 {roleLabels[profile.role] ?? profile.role}
               </span>
             </div>
+            {/* 🔔 Bildirim zili */}
+            <NotificationBell role={profile.role} />
             <SignOutButton />
           </div>
         </header>

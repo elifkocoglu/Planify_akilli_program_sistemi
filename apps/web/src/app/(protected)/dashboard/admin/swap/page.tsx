@@ -97,8 +97,29 @@ export default function AdminSwapPage() {
         .or(`requester_id.eq.${profile.id},receiver_id.eq.${profile.id}`)
         .order('created_at', { ascending: false })
 
-      setPendingSwaps((pending as SwapRequest[]) ?? [])
-      setMySwaps((mine as SwapRequest[]) ?? [])
+      // Supabase joined query'de ilişkisel alanlar dizi olarak döner;
+      // normalize ederek SwapRequest tipine uygun hale getir
+      const normalize = (rows: unknown[] | null): SwapRequest[] =>
+        (rows ?? []).map((row: unknown) => {
+          const r = row as Record<string, unknown>
+          const pickFirst = (v: unknown) =>
+            Array.isArray(v) ? (v[0] ?? null) : (v ?? null)
+          return {
+            id: r.id,
+            status: r.status,
+            created_at: r.created_at,
+            reject_reason: r.reject_reason,
+            requester_id: r.requester_id,
+            receiver_id: r.receiver_id,
+            requester: pickFirst(r.requester),
+            receiver: pickFirst(r.receiver),
+            requester_slot: pickFirst(r.requester_slot),
+            receiver_slot: pickFirst(r.receiver_slot),
+          } as SwapRequest
+        })
+
+      setPendingSwaps(normalize(pending))
+      setMySwaps(normalize(mine))
     } catch {
       toast.error('Veriler yüklenemedi')
     } finally {

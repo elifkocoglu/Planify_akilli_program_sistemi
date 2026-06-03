@@ -122,23 +122,52 @@ export function SidebarNav({ role, onNavigate }: SidebarNavProps) {
   const { profile } = useUser()
   const [unreadCount, setUnreadCount] = useState(0)
 
-  // Static fetch on mount — no global state / realtime
+  // Okunmamış bildirim sayısını çek ve realtime dinle
   useEffect(() => {
+    const supabase = createClient()
+
     const fetchUnread = async () => {
       try {
-        const supabase = createClient()
         const { count } = await supabase
           .from('notifications')
           .select('id', { count: 'exact', head: true })
           .eq('user_id', profile.id)
           .eq('is_read', false)
-
         setUnreadCount(count || 0)
       } catch {
         // silent
       }
     }
     fetchUnread()
+
+    // Realtime: yeni bildirim → sayaç arttır; okundu → yeniden say
+    const channel = supabase
+      .channel(`sidebar-notif-${profile.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${profile.id}`,
+        },
+        () => setUnreadCount((prev) => prev + 1)
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${profile.id}`,
+        },
+        () => fetchUnread()
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [profile.id])
 
   const filteredItems = navItems.filter((item) => item.roles.includes(role))

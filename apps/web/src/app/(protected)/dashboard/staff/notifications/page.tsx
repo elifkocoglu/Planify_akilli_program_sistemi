@@ -1,25 +1,11 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+'use client'
+
+import { useUser } from '@/lib/auth/useUser'
 import { NotificationList } from '@/components/staff/NotificationList'
-import type { NotificationRecord } from '@/lib/api/types'
 
-export default async function NotificationsPage() {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data } = await supabase
-    .from('notifications')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-    .range(0, 19)
-
-  const notifications: NotificationRecord[] = (data || []) as NotificationRecord[]
-
-  return (
-    <NotificationList
-      initialNotifications={notifications}
-    />
-  )
+export default function StaffNotificationsPage() {
+  const { profile } = useUser()
+  // profile.id ile client-side NotificationList kendi verisini çeker
+  void profile
+  return <NotificationList />
 }
