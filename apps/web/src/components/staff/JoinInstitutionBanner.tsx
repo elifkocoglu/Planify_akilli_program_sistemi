@@ -67,7 +67,7 @@ export function JoinInstitutionBanner({ userId }: JoinInstitutionBannerProps) {
 
       toast.success('Kuruma başarıyla katıldınız!')
       router.refresh()
-    } catch {
+    } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Bir hata oluştu')
     } finally {
       setJoining(false)
