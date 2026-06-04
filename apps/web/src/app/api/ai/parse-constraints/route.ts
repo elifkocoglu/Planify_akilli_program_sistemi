@@ -144,20 +144,59 @@ Format:
 - Tüm departman için geçerli olan kısıtlarda staffId: null olmalı.
 - Her kısıt için anlaşılır bir Türkçe description yaz.`
 
-    // 6. Gemini API çağrısı — birden fazla model alias'ı sırayla dene
+    // 6. Gemini API çağrısı — önce mevcut modelleri keşfet, sonra sırayla dene
     const genAI = new GoogleGenerativeAI(apiKey)
 
-    const MODEL_FALLBACK_LIST = [
-      'gemini-1.5-flash-latest',
-      'gemini-1.5-flash-001',
-      'gemini-1.5-pro-latest',
-      'gemini-pro',
+    // 6a. Key'in erişebildiği modelleri listele
+    const PREFER_PATTERNS = [
+      'flash-lite', 'flash', 'pro-latest', 'pro',
     ]
 
+    let candidateModels: string[] = []
+    try {
+      const listRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=50`
+      )
+      if (listRes.ok) {
+        const listData = await listRes.json() as {
+          models?: { name: string; supportedGenerationMethods?: string[] }[]
+        }
+        const allModels = (listData.models ?? [])
+          .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
+          .map((m) => m.name.replace('models/', ''))
+
+        // Tercih sırasına göre sırala: flash-lite → flash → pro-latest → pro → diğerleri
+        candidateModels = [
+          ...PREFER_PATTERNS.flatMap((pat) =>
+            allModels.filter((n) => n.includes(pat))
+          ),
+          ...allModels.filter((n) => !PREFER_PATTERNS.some((pat) => n.includes(pat))),
+        ]
+        // Tekrar edenleri kaldır
+        candidateModels = [...new Set(candidateModels)]
+      }
+    } catch {
+      // ListModels başarısız olursa bilinen listeye dön
+    }
+
+    // ListModels çalışmadıysa sabit fallback listesi (1.5 ailesi bu key'de yok)
+    if (candidateModels.length === 0) {
+      candidateModels = [
+        'gemini-2.0-flash-lite',   // en ucuz, hızlı
+        'gemini-2.0-flash-lite-001',
+        'gemini-2.0-flash',        // standart
+        'gemini-2.0-flash-001',
+        'gemini-2.5-flash',        // daha güçlü
+        'gemini-flash-lite-latest',
+        'gemini-flash-latest',
+      ]
+    }
+
+    // 6b. Sırayla dene, 404/429 gelince sonrakine geç
     let responseText = ''
     let lastError: Error | null = null
 
-    for (const modelName of MODEL_FALLBACK_LIST) {
+    for (const modelName of candidateModels) {
       try {
         const model = genAI.getGenerativeModel({ model: modelName })
         const result = await model.generateContent(systemPrompt)
@@ -165,17 +204,20 @@ Format:
         if (responseText && responseText.trim()) break
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err))
-        // 404 veya 429 → bir sonraki modeli dene; diğer hatalar → dur
         const msg = lastError.message ?? ''
         if (!msg.includes('404') && !msg.includes('429')) throw lastError
-        // bir sonraki modele geç
+        // 404 veya 429 → bir sonraki modeli dene
       }
     }
 
     if (!responseText || !responseText.trim()) {
       const errMsg = lastError?.message ?? 'Tüm modeller başarısız oldu'
       return NextResponse.json(
-        { success: false, error: `AI yanıtı alınamadı: ${errMsg}` },
+        {
+          success: false,
+          error: `AI yanıtı alınamadı: ${errMsg}`,
+          hint: 'API key kotası dolmuş ya da bu key için hiçbir model erişilebilir değil.',
+        },
         { status: 500 }
       )
     }
