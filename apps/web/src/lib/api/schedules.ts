@@ -147,19 +147,34 @@ export async function addSlot(
 /**
  * Mevcut slotu günceller.
  * Güncelleme öncesi kısıt kontrolü yapılır.
+ * Kısıt ihlali varsa violations bilgisi ile birlikte hata fırlatır.
  */
 export async function updateSlot(
   scheduleId: string,
   slotId: string,
   data: Partial<SlotInput>
 ): Promise<SlotResponse> {
-  return apiFetch<SlotResponse>(
+  const response = await fetch(
     `/api/schedules/${scheduleId}/slots/${slotId}`,
     {
       method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     }
   )
+
+  const result: SlotResponse = await response.json()
+
+  if (!response.ok || !result.success) {
+    // Kısıt ihlali varsa violations bilgisini error'a ekle
+    const err = new Error(result.error ?? `Güncelleme başarısız (HTTP ${response.status})`) as Error & { violations?: SlotResponse['violations'] }
+    if (result.violations && result.violations.length > 0) {
+      err.violations = result.violations
+    }
+    throw err
+  }
+
+  return result
 }
 
 /**

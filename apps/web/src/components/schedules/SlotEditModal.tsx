@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Loader2, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -40,19 +40,40 @@ export function SlotEditModal({
   const [staffId, setStaffId] = useState(slot.staff_id)
   const [startTime, setStartTime] = useState(slot.start_time)
   const [endTime, setEndTime] = useState(slot.end_time)
+  const [notes, setNotes] = useState(slot.notes ?? '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [violations, setViolations] = useState<ValidationResult[]>([])
+
+  // Slot prop değiştiğinde state'leri güncelle (stale state fix)
+  useEffect(() => {
+    setStaffId(slot.staff_id)
+    setStartTime(slot.start_time)
+    setEndTime(slot.end_time)
+    setNotes(slot.notes ?? '')
+    setError(null)
+    setViolations([])
+  }, [slot])
 
   const handleSave = async () => {
     setLoading(true)
     setError(null)
     setViolations([])
     try {
-      await updateSlot(scheduleId, slot.id, { staffId, startTime, endTime })
+      await updateSlot(scheduleId, slot.id, {
+        staffId,
+        startTime,
+        endTime,
+        notes: notes || undefined,
+      })
       onSaved()
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Güncelleme hatası'
+      // Violations bilgisini error'dan al
+      const typedErr = err as Error & { violations?: ValidationResult[] }
+      if (typedErr.violations && typedErr.violations.length > 0) {
+        setViolations(typedErr.violations)
+      }
+      const message = typedErr.message ?? 'Güncelleme hatası'
       setError(message)
     } finally {
       setLoading(false)
@@ -119,6 +140,19 @@ export function SlotEditModal({
               />
             </div>
           </div>
+
+          <div>
+            <label className="text-sm font-medium text-slate-300 mb-1.5 block">
+              Not (opsiyonel)
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              placeholder="Slot ile ilgili notlar..."
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-blue-500/50 focus:outline-none focus:ring-1 focus:ring-blue-500/30 resize-none"
+            />
+          </div>
         </div>
 
         {violations.length > 0 && (
@@ -128,12 +162,12 @@ export function SlotEditModal({
               <p key={i} className="text-xs text-red-300/70">• {v.message}</p>
             ))}
             <p className="text-xs text-slate-400 mt-2">
-              Yine de kaydedebilirsiniz (admin kararı).
+              Lütfen değerleri düzelterek tekrar deneyin.
             </p>
           </div>
         )}
 
-        {error && (
+        {error && violations.length === 0 && (
           <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3">
             <p className="text-sm text-red-400">{error}</p>
           </div>

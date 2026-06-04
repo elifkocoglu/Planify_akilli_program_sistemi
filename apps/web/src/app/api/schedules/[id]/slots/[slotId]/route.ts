@@ -79,6 +79,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     if (body.endTime !== undefined) updateData.end_time = body.endTime
     if (body.roomId !== undefined) updateData.room_id = body.roomId
     if (body.titleId !== undefined) updateData.title_id = body.titleId
+    if (body.notes !== undefined) updateData.notes = body.notes
     if (body.date !== undefined) {
       updateData.date = body.date
       updateData.day_of_week = getDayOfWeek(body.date)

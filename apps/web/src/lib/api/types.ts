@@ -72,6 +72,7 @@ export interface SlotInput {
   endTime: string
   roomId?: string
   titleId?: string
+  notes?: string
 }
 
 // ─── API Response Tipleri ────────────────────────────────────
