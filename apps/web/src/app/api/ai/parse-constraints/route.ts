@@ -144,16 +144,38 @@ Format:
 - Tüm departman için geçerli olan kısıtlarda staffId: null olmalı.
 - Her kısıt için anlaşılır bir Türkçe description yaz.`
 
-    // 6. Gemini API çağrısı
+    // 6. Gemini API çağrısı — birden fazla model alias'ı sırayla dene
     const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
-    const result = await model.generateContent(systemPrompt)
-    const responseText = result.response.text()
+    const MODEL_FALLBACK_LIST = [
+      'gemini-1.5-flash-latest',
+      'gemini-1.5-flash-001',
+      'gemini-1.5-pro-latest',
+      'gemini-pro',
+    ]
+
+    let responseText = ''
+    let lastError: Error | null = null
+
+    for (const modelName of MODEL_FALLBACK_LIST) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName })
+        const result = await model.generateContent(systemPrompt)
+        responseText = result.response.text()
+        if (responseText && responseText.trim()) break
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err))
+        // 404 veya 429 → bir sonraki modeli dene; diğer hatalar → dur
+        const msg = lastError.message ?? ''
+        if (!msg.includes('404') && !msg.includes('429')) throw lastError
+        // bir sonraki modele geç
+      }
+    }
 
     if (!responseText || !responseText.trim()) {
+      const errMsg = lastError?.message ?? 'Tüm modeller başarısız oldu'
       return NextResponse.json(
-        { success: false, error: 'AI yanıtı boş döndü, lütfen tekrar deneyin' },
+        { success: false, error: `AI yanıtı alınamadı: ${errMsg}` },
         { status: 500 }
       )
     }
