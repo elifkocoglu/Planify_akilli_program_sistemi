@@ -40,7 +40,7 @@ export function JoinInstitutionBanner({ userId }: JoinInstitutionBannerProps) {
           role: data.role
         })
       }
-    } catch (error) {
+    } catch {
       setInviteData({ valid: false, reason: 'Doğrulama hatası' })
       toast.error('Kod doğrulanırken bir hata oluştu')
     } finally {
@@ -67,7 +67,7 @@ export function JoinInstitutionBanner({ userId }: JoinInstitutionBannerProps) {
 
       toast.success('Kuruma başarıyla katıldınız!')
       router.refresh()
-    } catch (error) {
+    } catch {
       toast.error(error instanceof Error ? error.message : 'Bir hata oluştu')
     } finally {
       setJoining(false)

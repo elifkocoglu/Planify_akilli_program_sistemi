@@ -61,7 +61,7 @@ export function SwapRequestForm({ redirectPath = '/dashboard/staff/swap' }: Swap
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
-  const today = new Date().toISOString().split('T')[0]
+
 
   // 1) Kendi slotlarımı yükle (en az 24 saat sonrası)
   useEffect(() => {

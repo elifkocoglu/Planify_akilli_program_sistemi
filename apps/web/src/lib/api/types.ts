@@ -117,6 +117,35 @@ export interface PublishResponse extends BaseResponse {
   notifiedCount?: number
 }
 
+// ─── AI Kısıt Ayrıştırma Tipleri ────────────────────────────
+
+/** AI tarafından ayrıştırılan tekil kısıt */
+export interface ParsedConstraint {
+  staffId: string | null
+  staffName: string | null
+  type: string
+  value: Record<string, unknown>
+  description: string
+  isAuto?: boolean
+}
+
+/** AI kısıt ayrıştırma isteği */
+export interface ParseConstraintsInput {
+  text: string
+  staffList: { id: string; fullName: string; titleName?: string }[]
+  departmentId: string
+  institutionId: string
+  dateRange: { start: string; end: string }
+}
+
+/** AI kısıt ayrıştırma response'u */
+export interface ParseConstraintsResponse extends BaseResponse {
+  constraints?: ParsedConstraint[]
+  autoConstraints?: ParsedConstraint[]
+  unrecognized?: string[]
+  summary?: string
+}
+
 // ─── Staff Tipleri ──────────────────────────────────────────
 
 /** Veritabanındaki profil kaydı (personel listesi) */

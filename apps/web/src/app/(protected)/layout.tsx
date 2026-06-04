@@ -50,7 +50,7 @@ export default async function ProtectedLayout({
     full_name: profile.full_name,
     role: profile.role as UserProfile['role'],
     institution_id: profile.institution_id,
-    department_id: (profile as any).department_id ?? null,
+    department_id: ((profile as Record<string, unknown>).department_id as string | null) ?? null,
     is_active: profile.is_active,
   }
 

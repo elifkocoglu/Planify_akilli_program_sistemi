@@ -90,7 +90,7 @@ export async function POST(request: Request) {
 
     // signUp trigger'ı profile oluşturmuş olabilir ya da hemen oluşturacaktır.
     // 3. profiles tablosunu güncelle 
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       institution_id: invitation.institution_id,
       department_id: invitation.department_id,
       role: invitation.role,
