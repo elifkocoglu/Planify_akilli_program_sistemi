@@ -80,7 +80,7 @@ export async function POST(request: Request) {
       return `- ${staffName}: ${l.start_date} — ${l.end_date} arası izinli`
     })
 
-    // 5. Gemini prompt oluştur
+    // 5. Prompt yardımcı değişkenleri
     const staffListStr = staffList
       .map((s) => `- ${s.fullName}${s.titleName ? ` (${s.titleName})` : ''} (id: ${s.id})`)
       .join('\n')
@@ -89,13 +89,41 @@ export async function POST(request: Request) {
       ? `\n\nDepartmandaki onaylı izinler:\n${leaveInfo.join('\n')}\n\nBu izinleri kullanıcı belirtmese bile otomatik olarak unavailable_date kısıtı olarak ekle.`
       : ''
 
+    // Program tarihlerini önceden hesapla — prompt'a gömülecek
+    const programStart = new Date(dateRange.start)
+    const programEnd = new Date(dateRange.end)
+
+    // Programdaki tüm günleri üret
+    const allProgramDates: string[] = []
+    const cur = new Date(programStart)
+    while (cur <= programEnd) {
+      allProgramDates.push(cur.toISOString().slice(0, 10))
+      cur.setDate(cur.getDate() + 1)
+    }
+    const totalDays = allProgramDates.length
+
+    // İlk N / son N tarih örneklerini göster (prompt token tasarrufu için maks 7)
+    const first3 = allProgramDates.slice(0, 3).join(', ')
+    const last3  = allProgramDates.slice(-3).join(', ')
+    const first7 = allProgramDates.slice(0, 7).join(', ')
+    const last7  = allProgramDates.slice(-7).join(', ')
+
     const systemPrompt = `Sen bir hastane/okul nöbet programı asistanısın.
 Kullanıcının yazdığı Türkçe metni analiz edip JSON formatında kısıt listesine çevir.
 
 Departmandaki personel listesi:
 ${staffListStr}
 
-Program tarihi: ${dateRange.start} — ${dateRange.end}
+━━━ PROGRAM TARİH BİLGİLERİ ━━━
+Program başlangıcı : ${dateRange.start}
+Program bitişi     : ${dateRange.end}
+Toplam gün sayısı  : ${totalDays} gün
+
+İlk 3 günün tarihleri  : ${first3}
+Son 3 günün tarihleri  : ${last3}
+İlk 7 günün tarihleri  : ${first7}
+Son 7 günün tarihleri  : ${last7}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ${leaveSection}
 
 Kullanıcı metni:
@@ -106,7 +134,7 @@ Kullanıcı metni:
 - max_shifts_per_week: { "max": number }
 - max_hours_per_week: { "hours": number }
 - unavailable_day: { "dayOfWeek": number[] } (0=Pazar, 1=Pazartesi, 2=Salı, 3=Çarşamba, 4=Perşembe, 5=Cuma, 6=Cumartesi)
-- unavailable_date: { "dates": string[] } (YYYY-MM-DD formatında)
+- unavailable_date: { "dates": string[] } (YYYY-MM-DD formatında, TEK bir günden fazla olabilir)
 - min_rest_hours: { "hours": number }
 - no_consecutive_days: { "days": number }
 - must_together_shift: { "staffIds": string[] }
@@ -131,7 +159,23 @@ Format:
   "summary": "Kısa Türkçe özet"
 }
 
-Örnekler:
+━━━ TARİH ARALIĞI KURALLARI ━━━
+"İlk N gün", "son N gün", "ilk hafta", "son hafta" gibi GÖRECELİ ifadeler için
+yukarıdaki tarih listelerini kullan ve BÜTÜN günleri dates dizisine ekle.
+
+Örnekler (program ${dateRange.start}–${dateRange.end} için):
+• "ilk 3 gün"   → dates: [${first3}]  (3 tarih, hepsi eklenecek)
+• "son 3 gün"   → dates: [${last3}]   (3 tarih, hepsi eklenecek)
+• "ilk hafta"   → dates: [${first7}]  (7 tarih, hepsi eklenecek)
+• "son hafta"   → dates: [${last7}]   (7 tarih, hepsi eklenecek)
+• "ilk 2 gün"   → dates: [${allProgramDates.slice(0,2).join(', ')}]
+• "son 2 gün"   → dates: [${allProgramDates.slice(-2).join(', ')}]
+
+UYARI: "ilk 3 gün" derken yalnızca 1 tarih değil, tam olarak 3 tarih döndürülmeli!
+Tarih sayısı kullanıcının söylediği sayıyla eşleşmeli.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Diğer örnekler:
 "Ayşe 8 nöbet tutsun" → staffId: Ayşe'nin id'si, type: max_shifts_per_month, value: { "max": 8 }
 "Fatma Cuma günleri çalışmasın" → staffId: Fatma'nın id'si, type: unavailable_day, value: { "dayOfWeek": [5] }
 "15-20 Ocak arası Ali'ye nöbet yazma" → staffId: Ali'nin id'si, type: unavailable_date, value: { "dates": ["2025-01-15","2025-01-16","2025-01-17","2025-01-18","2025-01-19","2025-01-20"] }
@@ -142,7 +186,8 @@ Format:
 - Personel adlarını listedeki isimlerle eşleştir. Bulamazsan unrecognized listesine ekle.
 - staffId alanında mutlaka listedeki gerçek UUID'leri kullan.
 - Tüm departman için geçerli olan kısıtlarda staffId: null olmalı.
-- Her kısıt için anlaşılır bir Türkçe description yaz.`
+- Her kısıt için anlaşılır bir Türkçe description yaz.
+- unavailable_date kısıtında dates dizisi her zaman birden fazla gün içerebilir; eksik bırakma.`
 
     // 6. Gemini API çağrısı — önce mevcut modelleri keşfet, sonra sırayla dene
     const genAI = new GoogleGenerativeAI(apiKey)
@@ -173,7 +218,7 @@ Format:
           ...allModels.filter((n) => !PREFER_PATTERNS.some((pat) => n.includes(pat))),
         ]
         // Tekrar edenleri kaldır
-        candidateModels = [...new Set(candidateModels)]
+        candidateModels = Array.from(new Set(candidateModels))
       }
     } catch {
       // ListModels başarısız olursa bilinen listeye dön
