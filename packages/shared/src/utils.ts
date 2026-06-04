@@ -50,10 +50,15 @@ export function getShiftDurationMinutes(start: string, end: string): number {
  */
 export function getDatesInRange(start: string, end: string): string[] {
   const dates: string[] = []
-  const current = new Date(start + 'T00:00:00')
-  const last = new Date(end + 'T00:00:00')
+  // 'T12:00:00' ile UTC kaymasından bağımsız hale getiriyoruz;
+  // yerel tarih bileşenlerini doğrudan okuyoruz — toISOString() kullanmıyoruz.
+  const current = new Date(start + 'T12:00:00')
+  const last    = new Date(end   + 'T12:00:00')
   while (current <= last) {
-    dates.push(current.toISOString().slice(0, 10))
+    const y = current.getFullYear()
+    const m = String(current.getMonth() + 1).padStart(2, '0')
+    const d = String(current.getDate()).padStart(2, '0')
+    dates.push(`${y}-${m}-${d}`)
     current.setDate(current.getDate() + 1)
   }
   return dates
@@ -64,7 +69,11 @@ export function getDatesInRange(start: string, end: string): string[] {
  * 0=Pazar, 1=Pazartesi ... 6=Cumartesi
  */
 export function getDayOfWeek(date: string): number {
-  return new Date(date + 'T00:00:00').getDay()
+  // Date constructor'ı kullanmadan doğrudan parse ediyoruz;
+  // böylece UTC/yerel saat farkından kaynaklanan gün kayması olmaz.
+  const [year, month, day] = date.split('-').map(Number)
+  // Zeller'in algoritması — 0=Pazar, 1=Pazartesi … 6=Cumartesi
+  return new Date(year, month - 1, day).getDay()
 }
 
 /**

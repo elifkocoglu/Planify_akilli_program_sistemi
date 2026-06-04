@@ -90,14 +90,15 @@ export async function POST(request: Request) {
       : ''
 
     // Program tarihlerini önceden hesapla — prompt'a gömülecek
-    const programStart = new Date(dateRange.start)
-    const programEnd = new Date(dateRange.end)
-
-    // Programdaki tüm günleri üret
+    // T12:00:00 + yerel bileşenler: UTC kaymasından bağımsız doğru tarihler
     const allProgramDates: string[] = []
-    const cur = new Date(programStart)
-    while (cur <= programEnd) {
-      allProgramDates.push(cur.toISOString().slice(0, 10))
+    const cur = new Date(dateRange.start + 'T12:00:00')
+    const endCur = new Date(dateRange.end + 'T12:00:00')
+    while (cur <= endCur) {
+      const y = cur.getFullYear()
+      const mo = String(cur.getMonth() + 1).padStart(2, '0')
+      const d  = String(cur.getDate()).padStart(2, '0')
+      allProgramDates.push(`${y}-${mo}-${d}`)
       cur.setDate(cur.getDate() + 1)
     }
     const totalDays = allProgramDates.length
