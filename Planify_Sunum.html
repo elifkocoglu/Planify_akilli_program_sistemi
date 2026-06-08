@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <title>Planify Sunumu</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <!-- Reveal.js CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reset.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/theme/league.min.css"> <!-- league, black, white, dracula vs seçilebilir -->
+  
+  <style>
+    .reveal h2 {
+      text-transform: none;
+      font-size: 2em;
+    }
+    .reveal ul li {
+      font-size: 0.85em;
+      margin-bottom: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+      
+      <!-- Kapak Slaytı -->
+      <section>
+        <h1 style="text-transform:none; font-size: 3em;">Planify</h1>
+        <h3 style="text-transform:none;">Akıllı Nöbet ve Ders Programı Sistemi</h3>
+        <p>Yapay Zeka Destekli Planlama Asistanı</p>
+      </section>
+      
+      <!-- Amaç Slaytı -->
+      <section>
+        <h2>Projenin Amacı</h2>
+        <ul>
+          <li>Manuel, Excel tabanlı program hazırlama çilesini bitirmek.</li>
+          <li><strong>İnsan hatalarını</strong> (çakışmalar, yorgunluk limitleri ihlali) önlemek.</li>
+          <li>Vardiyaları personel arasında <strong>adil ve hakkaniyetli</strong> dağıtmak.</li>
+          <li>Yöneticilere her ay günlerce süren mesaiyi dakikalara indirmek.</li>
+        </ul>
+      </section>
+
+      <!-- Mimari Slaytı -->
+      <section>
+        <h2>Sistem Mimarisi</h2>
+        <ul>
+          <li><strong>Client (İstemci):</strong> Next.js 14 (Web) ve Expo / React Native (Mobil)</li>
+          <li><strong>Backend:</strong> Supabase (PostgreSQL, Auth, Edge Functions)</li>
+          <li><strong>AI Engine (Yapay Zeka):</strong> Google Gemini 1.5 Flash</li>
+          <li><strong>Altyapı:</strong> Turborepo ile Monorepo mimarisi</li>
+        </ul>
+      </section>
+
+      <!-- Tasarım Desenleri Slaytı -->
+      <section>
+        <h2>Kullanılan Tasarım Desenleri</h2>
+        <ul>
+          <li><strong>Strategy Pattern:</strong> Her bir algoritma kısıtının (Örn: Hafta Sonu Yasak, Maksimum Nöbet) sisteme dinamik olarak eklenebilmesi.</li>
+          <li><strong>Factory Pattern:</strong> Gemini AI'dan dönen JSON verilerinin (kısıtların) sınıflara dönüştürülmesi.</li>
+          <li><strong>Observer Pattern:</strong> Realtime senkronizasyonu (Veritabanındaki bir değişim anında mobil ekrana yansır).</li>
+          <li><strong>Singleton Pattern:</strong> Performans için tekil Supabase veritabanı bağlantısı.</li>
+        </ul>
+      </section>
+
+      <!-- AI Slaytı -->
+      <section>
+        <h2>Yapay Zeka (Gemini AI) Entegrasyonu</h2>
+        <p style="font-size: 0.8em; text-align: left;">
+          <strong>Problem:</strong> Yöneticilerin karmaşık teknik kısıt formlarını doldurmakta zorlanması.<br><br>
+          <strong>Çözüm:</strong> Yönetici kuralı doğal dil ile yazar:<br>
+          <em style="color:#f39c12;">"Dr. Ali'ye Pazartesi ve Cuma nöbet yazma, haftada en fazla 3 nöbet tutsun."</em><br><br>
+          Gemini bu metni <strong>anlar</strong> ve kısıt motorunun okuyabileceği yapılandırılmış JSON kurallarına anında çevirerek programı optimize eder.
+        </p>
+      </section>
+      
+      <!-- Güvenlik Slaytı -->
+      <section>
+        <h2>Güvenlik Yaklaşımı</h2>
+        <ul>
+          <li><strong>Row Level Security (RLS):</strong> Sadece API'de değil, doğrudan veritabanı seviyesinde kırılmaz yetkilendirme katmanı.</li>
+          <li><strong>Rol Tabanlı Erişim:</strong> Süper Admin, Kurum Admini, Departman Admini ve Personel (Staff) hiyerarşisi.</li>
+          <li>Yetkisiz kayıtları engellemek için sadece yöneticiden gelen davet koduyla çalışan kapalı üyelik sistemi.</li>
+        </ul>
+      </section>
+
+      <!-- Son Slayt -->
+      <section>
+        <h2>Teşekkürler</h2>
+        <p>Proje hakkında sorularınız?</p>
+      </section>
+
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.min.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      slideNumber: 'c/t', // Slayt numarası gösterimi (current/total)
+      transition: 'convex' // 'none', 'fade', 'slide', 'convex', 'concave', 'zoom'
+    });
+  </script>
+</body>
+</html>
