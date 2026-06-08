@@ -9,10 +9,14 @@ import {
   Plus,
   Trash2,
   Archive,
+  Brain,
+  Loader2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { AIAnalysisReport } from '@/components/schedules/AIAnalysisReport'
 import { SlotTable } from '@/components/schedules/SlotTable'
 import { UnresolvedAlert } from '@/components/schedules/UnresolvedAlert'
 import { GenerateButton } from '@/components/schedules/GenerateButton'
@@ -60,7 +64,8 @@ export default function ScheduleDetailPage({ params }: { params: { id: string } 
   const [loading, setLoading] = useState(true)
   const [unresolved] = useState<UnresolvedSlot[]>([])
 
-  // Add slot dialog
+  // AI Analizi
+  const [manualAnalysisLoading, setManualAnalysisLoading] = useState(false)
   const [addSlotOpen, setAddSlotOpen] = useState(false)
   const [newSlot, setNewSlot] = useState({ staffId: '', date: '', startTime: '08:00', endTime: '16:00' })
   const [addSlotLoading, setAddSlotLoading] = useState(false)
@@ -138,6 +143,55 @@ export default function ScheduleDetailPage({ params }: { params: { id: string } 
     }
   }
 
+  const handleManualAnalysis = async () => {
+    setManualAnalysisLoading(true)
+    try {
+       const constraintsRes = await fetch(`/api/constraints?departmentId=${schedule?.department_id}`)
+       const constraintsData = await constraintsRes.json()
+       
+       const apiSlots = slots.map(s => ({
+         staffId: s.staff_id,
+         date: s.date,
+         startTime: s.start_time,
+         endTime: s.end_time
+       }))
+  
+       const aiRes = await fetch('/api/ai/analyze-schedule', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            scheduleId: id,
+            slots: apiSlots,
+            unresolved: unresolved,
+            warnings: [],
+            staffList: staffList.map(s => ({ id: s.id, fullName: s.full_name })),
+            constraints: constraintsData.constraints?.map((c: any) => ({
+              staffId: c.staff_id,
+              type: c.type,
+              value: c.value
+            })) || [],
+            dateRange: { start: schedule?.start_date, end: schedule?.end_date },
+            scheduleType: schedule?.type
+          })
+       })
+       const data = await aiRes.json()
+       if (data.success) {
+         toast.success("AI Analizi başarıyla tamamlandı")
+         const updatedSchedule = { 
+           ...schedule!, 
+           settings: { ...((schedule as any).settings || {}), aiAnalysis: data.analysis } 
+         } as ScheduleRecord
+         setSchedule(updatedSchedule)
+       } else {
+         throw new Error(data.error)
+       }
+    } catch (err: any) {
+      toast.error(err.message || 'Analiz başarısız oldu')
+    } finally {
+      setManualAnalysisLoading(false)
+    }
+  }
+
   const handleDelete = async () => {
     setIsDeleting(true)
     try {
@@ -155,6 +209,26 @@ export default function ScheduleDetailPage({ params }: { params: { id: string } 
 
   const formatDate = (d: string) =>
     parseLocalDate(d).toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' })
+
+  const calculateStaffStats = () => {
+    return staffList.map(staff => {
+      const staffSlots = slots.filter(s => s.staff_id === staff.id && s.status === 'active')
+      const totalHours = staffSlots.reduce((acc, slot) => {
+        const [sh, sm] = slot.start_time.split(':').map(Number)
+        const [eh, em] = slot.end_time.split(':').map(Number)
+        let diff = (eh * 60 + em) - (sh * 60 + sm)
+        if (diff <= 0) diff += 24 * 60
+        return acc + diff / 60
+      }, 0)
+
+      return {
+        id: staff.id,
+        fullName: staff.full_name,
+        shiftCount: staffSlots.length,
+        totalHours: Math.round(totalHours * 10) / 10,
+      }
+    })
+  }
 
   const inputClass =
     'w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-blue-500/50 focus:outline-none focus:ring-1 focus:ring-blue-500/30'
@@ -281,23 +355,59 @@ export default function ScheduleDetailPage({ params }: { params: { id: string } 
         </div>
       </div>
 
-      {/* Unresolved Alert */}
-      <UnresolvedAlert unresolved={unresolved} />
+      <Tabs defaultValue="slots" className="w-full">
+        <TabsList className="bg-white/[0.02] border border-white/10 p-1 rounded-xl mb-6">
+          <TabsTrigger value="slots" className="rounded-lg data-[state=active]:bg-white/10 data-[state=active]:text-white text-slate-400">
+            Slotlar
+          </TabsTrigger>
+          <TabsTrigger value="analysis" className="rounded-lg data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300 text-slate-400 flex items-center gap-2">
+            <Brain className="h-4 w-4" />
+            🤖 AI Analizi
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Slot stats */}
-      <div className="flex items-center gap-4 text-sm">
-        <span className="text-slate-400">
-          Toplam: <strong className="text-white">{slots.filter((s) => s.status === 'active').length}</strong> aktif slot
-        </span>
-      </div>
+        <TabsContent value="slots" className="space-y-6">
+          {/* Unresolved Alert */}
+          <UnresolvedAlert unresolved={unresolved} />
 
-      {/* Slot Table */}
-      <SlotTable
-        slots={slots.filter((s) => s.status !== 'cancelled')}
-        scheduleId={id}
-        isDraft={isDraft}
-        staffList={staffList}
-      />
+          {/* Slot stats */}
+          <div className="flex items-center gap-4 text-sm">
+            <span className="text-slate-400">
+              Toplam: <strong className="text-white">{slots.filter((s) => s.status === 'active').length}</strong> aktif slot
+            </span>
+          </div>
+
+          {/* Slot Table */}
+          <SlotTable
+            slots={slots.filter((s) => s.status !== 'cancelled')}
+            scheduleId={id}
+            isDraft={isDraft}
+            staffList={staffList}
+          />
+        </TabsContent>
+
+        <TabsContent value="analysis" className="space-y-6">
+          {(schedule as any).settings?.aiAnalysis ? (
+            <AIAnalysisReport 
+              analysis={(schedule as any).settings.aiAnalysis} 
+              staffStats={calculateStaffStats()}
+              unresolvedCount={unresolved.length}
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 px-4 text-center border border-white/10 rounded-xl bg-white/[0.02] border-dashed">
+              <Brain className="h-12 w-12 text-slate-500 mb-4" />
+              <h3 className="text-lg font-semibold text-white mb-2">AI Analizi Bulunmuyor</h3>
+              <p className="text-sm text-slate-400 mb-6 max-w-md mx-auto">
+                Bu program için henüz yapay zeka analizi yapılmamış veya analiz verisi güncel değil. Şimdi analiz başlatabilirsiniz.
+              </p>
+              <Button onClick={handleManualAnalysis} disabled={manualAnalysisLoading} className="bg-purple-600 hover:bg-purple-700 text-white">
+                {manualAnalysisLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Brain className="h-4 w-4 mr-2" />}
+                {manualAnalysisLoading ? 'Analiz Ediliyor...' : 'Yapay Zeka ile Analiz Et'}
+              </Button>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* Add Slot Dialog */}
       <Dialog open={addSlotOpen} onOpenChange={(v) => { setAddSlotOpen(v); setAddSlotError(null) }}>

@@ -165,11 +165,71 @@ SADECE JSON döndür, markdown kullanma. Aşağıdaki yapıda olmalı:
 }
 `
 
-    // 6. Gemini çağrısı
+    // 6. Gemini API çağrısı — önce mevcut modelleri keşfet, sonra sırayla dene
     const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
-    const result = await model.generateContent(prompt)
-    let responseText = result.response.text()
+
+    const PREFER_PATTERNS = [
+      'flash-lite', 'flash', 'pro-latest', 'pro',
+    ]
+
+    let candidateModels: string[] = []
+    try {
+      const listRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=50`
+      )
+      if (listRes.ok) {
+        const listData = await listRes.json() as {
+          models?: { name: string; supportedGenerationMethods?: string[] }[]
+        }
+        const allModels = (listData.models ?? [])
+          .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
+          .map((m) => m.name.replace('models/', ''))
+
+        candidateModels = [
+          ...PREFER_PATTERNS.flatMap((pat) =>
+            allModels.filter((n) => n.includes(pat))
+          ),
+          ...allModels.filter((n) => !PREFER_PATTERNS.some((pat) => n.includes(pat))),
+        ]
+        candidateModels = Array.from(new Set(candidateModels))
+      }
+    } catch {
+      // Sessizce geç
+    }
+
+    if (candidateModels.length === 0) {
+      candidateModels = [
+        'gemini-2.0-flash-lite',
+        'gemini-2.0-flash-lite-001',
+        'gemini-2.0-flash',
+        'gemini-2.0-flash-001',
+        'gemini-2.5-flash',
+        'gemini-1.5-flash',
+        'gemini-flash-lite-latest',
+        'gemini-flash-latest',
+      ]
+    }
+
+    let responseText = ''
+    let lastError: Error | null = null
+
+    for (const modelName of candidateModels) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName })
+        const result = await model.generateContent(prompt)
+        responseText = result.response.text()
+        if (responseText && responseText.trim()) break
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err))
+        const msg = lastError.message ?? ''
+        // 404 veya 429 dışındaki hataları fırlat
+        if (!msg.includes('404') && !msg.includes('429')) throw lastError
+      }
+    }
+
+    if (!responseText || !responseText.trim()) {
+      throw lastError || new Error('Erişilebilir bir Gemini modeli bulunamadı')
+    }
 
     let analysis
     try {

@@ -20,6 +20,7 @@ import { createSchedule, generateScheduleAPI } from '@/lib/api/schedules'
 import { createConstraint } from '@/lib/api/constraints'
 import { toast } from 'sonner'
 import type { ParsedConstraint } from '@/lib/api/types'
+import { AIAnalysisReport } from './AIAnalysisReport'
 
 interface Department {
   id: string
@@ -44,6 +45,9 @@ export function ScheduleForm({ departments, basePath }: ScheduleFormProps) {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [createdScheduleId, setCreatedScheduleId] = useState<string | null>(null)
+  const [analysisResult, setAnalysisResult] = useState<any>(null)
+  const [analysisLoading, setAnalysisLoading] = useState(false)
 
   // Step 1
   const [title, setTitle] = useState('')
@@ -222,6 +226,7 @@ export function ScheduleForm({ departments, basePath }: ScheduleFormProps) {
   const handleSubmit = async () => {
     setLoading(true)
     setError(null)
+    setAnalysisResult(null)
     try {
       const scheduleResult = await createSchedule({
         title: title.trim(),
@@ -234,20 +239,66 @@ export function ScheduleForm({ departments, basePath }: ScheduleFormProps) {
 
       const scheduleId = scheduleResult.schedule?.id
       if (!scheduleId) throw new Error('Program oluşturulamadı')
+      
+      setCreatedScheduleId(scheduleId)
 
-      await generateScheduleAPI({
+      const genRes = await generateScheduleAPI({
         scheduleId,
         dailySlotCount,
         slotDuration,
         startHour,
       })
 
-      router.push(`${basePath}/schedules/${scheduleId}`)
+      setLoading(false)
+      setAnalysisLoading(true)
+
+      try {
+        const detailRes = await fetch(`/api/schedules/${scheduleId}`)
+        const detailData = await detailRes.json()
+        const slots = detailData.slots?.map((s: any) => ({
+          staffId: s.staff_id,
+          date: s.date,
+          startTime: s.start_time,
+          endTime: s.end_time
+        })) || []
+
+        const constraintsRes = await fetch(`/api/constraints?departmentId=${departmentId}`)
+        const constraintsData = await constraintsRes.json()
+        const constraintsList = constraintsData.constraints?.map((c: any) => ({
+          staffId: c.staff_id,
+          type: c.type,
+          value: c.value
+        })) || []
+
+        const aiRes = await fetch('/api/ai/analyze-schedule', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            scheduleId,
+            slots,
+            unresolved: genRes.unresolved || [],
+            warnings: genRes.warnings || [],
+            staffList,
+            constraints: constraintsList,
+            dateRange: { start: startDate, end: endDate },
+            scheduleType: type
+          })
+        })
+        
+        const aiData = await aiRes.json()
+        if (aiData.success && aiData.analysis) {
+          setAnalysisResult({ analysis: aiData.analysis, staffStats: aiData.staffStats, unresolvedCount: (genRes.unresolved || []).length })
+        }
+      } catch (err) {
+        console.error('AI Analiz Hatası:', err)
+      } finally {
+        setAnalysisLoading(false)
+      }
+
     } catch (err: unknown) {
+      setLoading(false)
       const message = err instanceof Error ? err.message : 'Bilinmeyen hata'
       setError(message)
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -667,36 +718,72 @@ export function ScheduleForm({ departments, basePath }: ScheduleFormProps) {
         {/* ──── STEP 4: Onay ──── */}
         {step === 4 && (
           <div className="space-y-5">
-            <div>
-              <h2 className="text-lg font-semibold text-white mb-1">Onay</h2>
-              <p className="text-sm text-slate-400">Bilgileri kontrol edin ve programı oluşturun.</p>
-            </div>
-
-            <div className="space-y-3">
-              {[
-                { label: 'Program Adı', value: title },
-                { label: 'Tip', value: type === 'duty' ? 'Nöbet' : 'Ders' },
-                { label: 'Departman', value: deptName },
-                { label: 'Periyot', value: periodType === 'weekly' ? 'Haftalık' : 'Aylık' },
-                { label: 'Tarih Aralığı', value: `${startDate} — ${endDate}` },
-                { label: 'Günlük Vardiya', value: `${dailySlotCount} × ${durLabel}` },
-                { label: 'Başlangıç Saati', value: startHour },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center justify-between py-2 border-b border-white/[0.04] last:border-0">
-                  <span className="text-sm text-slate-400">{item.label}</span>
-                  <span className="text-sm font-medium text-white">{item.value}</span>
+            {analysisLoading ? (
+              <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                <Brain className="h-12 w-12 text-purple-500 animate-pulse" />
+                <p className="text-lg font-medium text-purple-300 animate-pulse">🤖 AI programı analiz ediyor...</p>
+                <p className="text-sm text-slate-400">Bu işlem birkaç saniye sürebilir, lütfen bekleyin.</p>
+              </div>
+            ) : analysisResult ? (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold text-white mb-1">Program Başarıyla Oluşturuldu!</h2>
+                    <p className="text-sm text-emerald-400">Yapay zeka analiz raporunu aşağıda inceleyebilirsiniz.</p>
+                  </div>
                 </div>
-              ))}
-
-              {savedConstraintCount > 0 && (
-                <div className="flex items-center justify-between py-2 border-b border-white/[0.04]">
-                  <span className="text-sm text-slate-400">AI Kısıtları</span>
-                  <Badge variant="outline" className="text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
-                    {savedConstraintCount} kısıt kaydedildi
-                  </Badge>
+                
+                <AIAnalysisReport 
+                  analysis={analysisResult.analysis} 
+                  staffStats={analysisResult.staffStats} 
+                  unresolvedCount={analysisResult.unresolvedCount} 
+                />
+              </div>
+            ) : createdScheduleId ? (
+              <div className="space-y-6 text-center py-12">
+                <div className="mx-auto w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mb-4">
+                  <Check className="h-8 w-8 text-emerald-500" />
                 </div>
-              )}
-            </div>
+                <h2 className="text-xl font-bold text-white mb-1">Program Başarıyla Oluşturuldu!</h2>
+                <p className="text-sm text-amber-400 max-w-md mx-auto">
+                  Program kaydedildi ve onaylandı. Ancak yapay zeka analiz raporu oluşturulurken geçici bir sorun oluştu. 
+                  Program detay sayfasından daha sonra tekrar analiz edebilirsiniz.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <h2 className="text-lg font-semibold text-white mb-1">Onay</h2>
+                  <p className="text-sm text-slate-400">Bilgileri kontrol edin ve programı oluşturun.</p>
+                </div>
+
+                <div className="space-y-3">
+                  {[
+                    { label: 'Program Adı', value: title },
+                    { label: 'Tip', value: type === 'duty' ? 'Nöbet' : 'Ders' },
+                    { label: 'Departman', value: deptName },
+                    { label: 'Periyot', value: periodType === 'weekly' ? 'Haftalık' : 'Aylık' },
+                    { label: 'Tarih Aralığı', value: `${startDate} — ${endDate}` },
+                    { label: 'Günlük Vardiya', value: `${dailySlotCount} × ${durLabel}` },
+                    { label: 'Başlangıç Saati', value: startHour },
+                  ].map((item) => (
+                    <div key={item.label} className="flex items-center justify-between py-2 border-b border-white/[0.04] last:border-0">
+                      <span className="text-sm text-slate-400">{item.label}</span>
+                      <span className="text-sm font-medium text-white">{item.value}</span>
+                    </div>
+                  ))}
+
+                  {savedConstraintCount > 0 && (
+                    <div className="flex items-center justify-between py-2 border-b border-white/[0.04]">
+                      <span className="text-sm text-slate-400">AI Kısıtları</span>
+                      <Badge variant="outline" className="text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
+                        {savedConstraintCount} kısıt kaydedildi
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -712,7 +799,7 @@ export function ScheduleForm({ departments, basePath }: ScheduleFormProps) {
           <Button
             variant="ghost"
             onClick={() => { setError(null); setStep(step - 1) }}
-            disabled={step === 1 || loading}
+            disabled={step === 1 || loading || analysisLoading || analysisResult != null}
             className="text-slate-400 hover:text-white"
           >
             <ArrowLeft className="h-4 w-4 mr-1.5" />
@@ -738,16 +825,24 @@ export function ScheduleForm({ departments, basePath }: ScheduleFormProps) {
                 </Button>
               )}
             </div>
+          ) : analysisResult || createdScheduleId ? (
+            <Button
+              onClick={() => router.push(`${basePath}/schedules/${createdScheduleId}`)}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {analysisResult ? 'Devam Et' : 'Programı Görüntüle'}
+              <ArrowRight className="h-4 w-4 ml-1.5" />
+            </Button>
           ) : (
             <Button
               onClick={handleSubmit}
-              disabled={loading}
+              disabled={loading || analysisLoading}
               className="bg-emerald-600 hover:bg-emerald-700 text-white"
             >
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Oluşturuluyor...
+                  Program oluşturuluyor...
                 </>
               ) : (
                 <>
