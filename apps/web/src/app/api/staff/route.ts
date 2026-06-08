@@ -76,7 +76,7 @@ export async function GET(request: Request) {
         .from('schedule_slots')
         .select('staff_id')
         .in('staff_id', staffIds)
-        .eq('status', 'active')
+        .in('status', ['active', 'swapped'])
         .gte('date', monthStart)
         .lte('date', monthEnd)
 

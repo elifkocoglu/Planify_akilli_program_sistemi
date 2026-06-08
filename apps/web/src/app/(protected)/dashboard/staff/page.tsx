@@ -90,7 +90,7 @@ export default async function StaffDashboardPage() {
       .select('id, date, start_time, end_time, department_id, departments(name), schedules!inner(status)')
       .eq('staff_id', user.id)
       .eq('date', todayStr)
-      .eq('status', 'active')
+      .in('status', ['active', 'swapped'])
       .eq('schedules.status', 'published')
       .limit(1),
     // This week's slots count
@@ -100,7 +100,7 @@ export default async function StaffDashboardPage() {
       .eq('staff_id', user.id)
       .gte('date', mondayStr)
       .lte('date', sundayStr)
-      .eq('status', 'active')
+      .in('status', ['active', 'swapped'])
       .eq('schedules.status', 'published'),
     // This month's slots count
     supabase
@@ -109,7 +109,7 @@ export default async function StaffDashboardPage() {
       .eq('staff_id', user.id)
       .gte('date', monthStart)
       .lte('date', monthEnd)
-      .eq('status', 'active')
+      .in('status', ['active', 'swapped'])
       .eq('schedules.status', 'published'),
     // Upcoming 7 days slots
     supabase
@@ -118,7 +118,7 @@ export default async function StaffDashboardPage() {
       .eq('staff_id', user.id)
       .gte('date', todayStr)
       .lte('date', next7Str)
-      .eq('status', 'active')
+      .in('status', ['active', 'swapped'])
       .eq('schedules.status', 'published')
       .order('date', { ascending: true })
       .order('start_time', { ascending: true }),
@@ -153,7 +153,7 @@ export default async function StaffDashboardPage() {
       .select('date, schedules!inner(status)')
       .eq('staff_id', user.id)
       .gt('date', todayStr)
-      .eq('status', 'active')
+      .in('status', ['active', 'swapped'])
       .eq('schedules.status', 'published')
       .order('date', { ascending: true })
       .limit(1),

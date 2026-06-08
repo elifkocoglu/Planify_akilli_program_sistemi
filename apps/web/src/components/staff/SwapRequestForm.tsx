@@ -77,7 +77,7 @@ export function SwapRequestForm({ redirectPath = '/dashboard/staff/swap' }: Swap
         .from('schedule_slots')
         .select('id, date, start_time, end_time, department_id, departments(name)')
         .eq('staff_id', profile.id)
-        .eq('status', 'active')
+        .in('status', ['active', 'swapped'])
         .gte('date', cutoffDate)
         .order('date', { ascending: true })
 
@@ -151,7 +151,7 @@ export function SwapRequestForm({ redirectPath = '/dashboard/staff/swap' }: Swap
         .from('schedule_slots')
         .select('id, date, start_time, end_time, department_id, departments(name)')
         .eq('staff_id', selectedStaff)
-        .eq('status', 'active')
+        .in('status', ['active', 'swapped'])
         .gte('date', cutoffDate)
         .order('date', { ascending: true })
 

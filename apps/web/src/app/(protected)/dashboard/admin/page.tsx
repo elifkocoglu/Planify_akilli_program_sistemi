@@ -58,24 +58,26 @@ export default function InstitutionAdminDashboardPage() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        const [draftRes, pubRes, leavesRes, swapsRes, cancelRes] = await Promise.all([
+        const [draftRes, pubRes, leavesRes, swapsRes, cancelRes, staffRes] = await Promise.all([
           fetch('/api/schedules?status=draft'),
           fetch('/api/schedules?status=published'),
           fetch('/api/leave-requests?status=pending&view=admin'),
           fetch('/api/swap-requests?status=approved_by_receiver'),
           fetch('/api/leave-requests?status=approved&cancel_requested=true&view=admin'),
+          fetch('/api/staff?isActive=true'),
         ])
         const draftData = await draftRes.json()
         const pubData = await pubRes.json()
         const leavesData = await leavesRes.json()
         const swapsData = await swapsRes.json()
         const cancelData = await cancelRes.json()
+        const staffData = await staffRes.json()
 
         setStats({
           draftCount: draftData.schedules?.length ?? 0,
           publishedCount: pubData.schedules?.length ?? 0,
           archivedCount: 0,
-          activeStaff: 0,
+          activeStaff: staffData.staff?.length ?? 0,
           pendingLeaves: leavesData.leaveRequests?.length ?? 0,
           pendingLeaveRequests: (leavesData.leaveRequests ?? []).slice(0, 5),
           cancelRequestedLeaves: (cancelData.leaveRequests ?? []).slice(0, 5),
@@ -137,7 +139,7 @@ export default function InstitutionAdminDashboardPage() {
       icon: Users,
       color: 'text-blue-400',
       bg: 'bg-blue-500/10',
-      desc: 'Departman toplamı',
+      desc: 'Kurum toplamı',
     },
     {
       label: 'Bekleyen İzin',

@@ -57,7 +57,7 @@ export async function GET(
       .from('schedule_slots')
       .select('id, start_time, end_time')
       .eq('staff_id', params.id)
-      .eq('status', 'active')
+      .in('status', ['active', 'swapped'])
       .gte('date', formatDate(weekStart))
       .lte('date', formatDate(weekEnd))
 
@@ -66,7 +66,7 @@ export async function GET(
       .from('schedule_slots')
       .select('id, start_time, end_time')
       .eq('staff_id', params.id)
-      .eq('status', 'active')
+      .in('status', ['active', 'swapped'])
       .gte('date', formatDate(monthStart))
       .lte('date', formatDate(monthEnd))
 
@@ -92,7 +92,7 @@ export async function GET(
         .from('schedule_slots')
         .select('*', { count: 'exact', head: true })
         .eq('staff_id', params.id)
-        .eq('status', 'active')
+        .in('status', ['active', 'swapped'])
         .gte('date', mStart)
         .lte('date', mEnd)
 
@@ -113,7 +113,7 @@ export async function GET(
       .from('schedule_slots')
       .select('id, schedule_id, staff_id, department_id, date, day_of_week, start_time, end_time, status, created_at')
       .eq('staff_id', params.id)
-      .eq('status', 'active')
+      .in('status', ['active', 'swapped'])
       .gte('date', formatDate(now))
       .lte('date', formatDate(futureEnd))
       .order('date', { ascending: true })

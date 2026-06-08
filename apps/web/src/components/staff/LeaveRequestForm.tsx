@@ -79,7 +79,7 @@ export function LeaveRequestForm() {
         .from('schedule_slots')
         .select('date, start_time, end_time')
         .eq('staff_id', profile.id)
-        .eq('status', 'active')
+        .in('status', ['active', 'swapped'])
         .gte('date', startDate)
         .lte('date', endDate)
         .order('date', { ascending: true })
