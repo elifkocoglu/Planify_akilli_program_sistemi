@@ -2,9 +2,9 @@ import type { ValidationResult, Constraint } from '../../types/constraint.types'
 import type { ScheduleSlot } from '../../types/schedule.types'
 
 export function validateRequiredOnDate(
-  slots: ScheduleSlot[],
+  _slots: ScheduleSlot[],
   constraint: Constraint,
-  candidateSlot: ScheduleSlot
+  _candidateSlot: ScheduleSlot
 ): ValidationResult {
   // Bu kısıt generator'da özel handle edilecek (öncelikli seçim)
   // Validator'da her zaman geçerli döndür.
