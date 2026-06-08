@@ -6,14 +6,14 @@ import { requireAuth, isAuthError } from '@/lib/api/auth-helpers'
 // ─────────────────────────────────────────────────────────────
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = await requireAuth()
     if (isAuthError(auth)) return auth
     const { profile, supabase } = auth
 
-    const { id } = params
+    const { id } = await params
     const body = await request.json()
     const { action, rejectReason } = body as {
       action: 'accept' | 'reject' | 'approve'
@@ -80,6 +80,7 @@ export async function PATCH(
         await supabase.from('notifications').insert(
           admins.map((a) => ({
             user_id: a.id,
+            institution_id: profile.institution_id,
             type: 'swap_request' as const,
             title: 'Takas Talebi Admin Onayı Bekliyor',
             body: `Bir takas talebi her iki tarafça kabul edildi, admin onayınız bekleniyor.`,
@@ -92,6 +93,7 @@ export async function PATCH(
       // Requester'a bildirim
       await supabase.from('notifications').insert({
         user_id: swap.requester_id,
+        institution_id: profile.institution_id,
         type: 'swap_request',
         title: 'Takas Talebiniz Kabul Edildi',
         body: 'Karşı taraf takas talebinizi kabul etti. Admin onayı bekleniyor.',
@@ -149,6 +151,7 @@ export async function PATCH(
       await supabase.from('notifications').insert(
         notifyIds.map((uid) => ({
           user_id: uid,
+          institution_id: profile.institution_id,
           type: 'swap_rejected' as const,
           title: 'Takas Talebi Reddedildi',
           body: rejectBody,
@@ -217,10 +220,10 @@ export async function PATCH(
         )
       }
 
-      // Her iki personele bildirim
       await supabase.from('notifications').insert([
         {
           user_id: swap.requester_id,
+          institution_id: profile.institution_id,
           type: 'swap_approved' as const,
           title: 'Takas Onaylandı',
           body: 'Takas talebiniz admin tarafından onaylandı. Nöbetleriniz güncellendi.',
@@ -229,6 +232,7 @@ export async function PATCH(
         },
         {
           user_id: swap.receiver_id,
+          institution_id: profile.institution_id,
           type: 'swap_approved' as const,
           title: 'Takas Onaylandı',
           body: 'Takas talebi admin tarafından onaylandı. Nöbetleriniz güncellendi.',

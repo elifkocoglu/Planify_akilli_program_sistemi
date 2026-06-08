@@ -142,6 +142,7 @@ Kullanıcı metni:
 - not_together_shift: { "staffIds": string[] }
 - min_staff_per_shift: { "min": number }
 - max_staff_per_shift: { "max": number }
+- required_on_date: { "dates": string[] } (Belirli bir tarihte/tarihlerde bu personelin kesinlikle nöbet tutması gerekiyorsa kullanılır)
 
 SADECE JSON döndür, başka hiçbir şey yazma. Markdown kod bloğu kullanma.
 
@@ -178,6 +179,7 @@ Tarih sayısı kullanıcının söylediği sayıyla eşleşmeli.
 
 Diğer örnekler:
 "Ayşe 8 nöbet tutsun" → staffId: Ayşe'nin id'si, type: max_shifts_per_month, value: { "max": 8 }
+"ilk nöbeti İsmail tutacak" → staffId: İsmail'in id'si, type: required_on_date, value: { "dates": ["${allProgramDates[0]}"] }
 "Fatma Cuma günleri çalışmasın" → staffId: Fatma'nın id'si, type: unavailable_day, value: { "dayOfWeek": [5] }
 "15-20 Ocak arası Ali'ye nöbet yazma" → staffId: Ali'nin id'si, type: unavailable_date, value: { "dates": ["2025-01-15","2025-01-16","2025-01-17","2025-01-18","2025-01-19","2025-01-20"] }
 "Her vardiyada en az 2 kişi olsun" → staffId: null, type: min_staff_per_shift, value: { "min": 2 }

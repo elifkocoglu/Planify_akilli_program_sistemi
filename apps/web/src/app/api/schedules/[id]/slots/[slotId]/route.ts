@@ -3,13 +3,14 @@ import { requireAuth, isAuthError, canAccessDepartment } from '@/lib/api/auth-he
 import {
   validateSlot,
   getDayOfWeek,
+  getDatesInRange,
   type ScheduleSlot,
   type Constraint,
   type ConstraintType,
 } from '@planify/shared'
 
 interface RouteParams {
-  params: { id: string; slotId: string }
+  params: Promise<{ id: string; slotId: string }>
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -22,7 +23,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     if (isAuthError(auth)) return auth
     const { profile, supabase } = auth
 
-    const { id: scheduleId, slotId } = params
+    const { id: scheduleId, slotId } = await params
 
     // 2. Schedule kontrol
     const { data: schedule, error: scheduleError } = await supabase
@@ -94,7 +95,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
     // 5. Kısıt kontrolü: Güncellenmiş slotu doğrula
     // Diğer slotları çek (bu slot hariç)
-    const [otherSlotsResult, constraintsResult] = await Promise.all([
+    const [otherSlotsResult, constraintsResult, leavesResult] = await Promise.all([
       supabase
         .from('schedule_slots')
         .select('id, schedule_id, staff_id, department_id, room_id, title_id, date, day_of_week, start_time, end_time, status')
@@ -106,6 +107,11 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         .select('id, institution_id, department_id, staff_id, type, value, is_active')
         .eq('institution_id', schedule.institution_id)
         .eq('is_active', true),
+      supabase
+        .from('leave_requests')
+        .select('id, staff_id, start_date, end_date, institution_id')
+        .eq('status', 'approved')
+        .eq('institution_id', schedule.institution_id),
     ])
 
     const otherSlots: ScheduleSlot[] = (otherSlotsResult.data ?? []).map((s) => ({
@@ -131,6 +137,21 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       value: (c.value as Record<string, unknown>) ?? {},
       isActive: c.is_active,
     }))
+
+    // İzinleri kısıt olarak ekle
+    if (leavesResult.data) {
+      leavesResult.data.forEach((l) => {
+        constraints.push({
+          id: `leave-${l.id}`,
+          institutionId: l.institution_id,
+          departmentId: undefined,
+          staffId: l.staff_id,
+          type: 'unavailable_date',
+          value: { dates: getDatesInRange(l.start_date, l.end_date) },
+          isActive: true,
+        })
+      })
+    }
 
     // Güncellenmiş aday slot
     const candidateSlot: ScheduleSlot = {
@@ -207,7 +228,7 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
     if (isAuthError(auth)) return auth
     const { profile, supabase } = auth
 
-    const { id: scheduleId, slotId } = params
+    const { id: scheduleId, slotId } = await params
 
     // 2. Schedule kontrol
     const { data: schedule, error: scheduleError } = await supabase
@@ -260,6 +281,7 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
       .from('schedule_slots')
       .update({ status: 'cancelled' })
       .eq('id', slotId)
+      .eq('schedule_id', scheduleId)
 
     if (updateError) {
       return NextResponse.json(

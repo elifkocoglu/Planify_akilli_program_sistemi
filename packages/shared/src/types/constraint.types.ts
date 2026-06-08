@@ -15,6 +15,7 @@ export type ConstraintType =
   | 'must_together_shift'
   | 'teacher_no_overlap'
   | 'class_no_overlap'
+  | 'required_on_date'
   | 'custom'
 
 /** Kısıt tanımı */

@@ -6,17 +6,18 @@ import { requireAuth, isAuthError } from '@/lib/api/auth-helpers'
 // ─────────────────────────────────────────────────────────────
 export async function PATCH(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = await requireAuth()
     if (isAuthError(auth)) return auth
     const { profile, supabase } = auth
+    const { id } = await params
 
     const { error } = await supabase
       .from('notifications')
       .update({ is_read: true })
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', profile.id)
 
     if (error) {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthError } from '@/lib/api/auth-helpers'
 import type { CreateConstraintInput } from '@/lib/api/types'
+import { getDatesInRange } from '@planify/shared'
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/constraints — Kurum kısıt listesi
@@ -59,6 +60,33 @@ export async function GET(request: Request) {
         { success: false, error: `Kısıtlar alınamadı: ${error.message}` },
         { status: 500 }
       )
+    }
+
+    // İzinli personelleri 'unavailable_date' kısıtı olarak listeye ekle
+    const { data: leaves } = await supabase
+      .from('leave_requests')
+      .select('id, staff_id, start_date, end_date, institution_id, profiles(full_name)')
+      .eq('status', 'approved')
+      .eq('institution_id', profile.institution_id)
+
+    if (leaves && leaves.length > 0) {
+      leaves.forEach((l) => {
+        if (staffId && l.staff_id !== staffId) return
+        if (type && type !== 'all' && type !== 'unavailable_date') return
+
+        constraints?.push({
+          id: `leave-${l.id}`,
+          institution_id: l.institution_id,
+          department_id: null,
+          staff_id: l.staff_id,
+          type: 'unavailable_date',
+          value: { dates: getDatesInRange(l.start_date, l.end_date) },
+          is_active: true,
+          created_at: new Date().toISOString(),
+          profiles: Array.isArray(l.profiles) ? l.profiles[0] : l.profiles,
+          departments: null
+        } as any)
+      })
     }
 
     return NextResponse.json({ success: true, constraints })

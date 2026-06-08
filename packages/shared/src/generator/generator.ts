@@ -116,7 +116,14 @@ export function generateSchedule(input: GeneratorInput): GeneratorResult {
       const slotEndDate = nextDay ? addOneDay(date) : date
 
       // Personelleri en az nöbet tutandan en çok tutana sırala
+      // Öncelik: required_on_date kısıtı olanlar (o gün için)
       const sortedStaff = [...staff].sort((a, b) => {
+        const reqA = constraints.some(c => c.type === 'required_on_date' && c.staffId === a.id && (c.value.dates as string[] || []).includes(date))
+        const reqB = constraints.some(c => c.type === 'required_on_date' && c.staffId === b.id && (c.value.dates as string[] || []).includes(date))
+        
+        if (reqA && !reqB) return -1
+        if (!reqA && reqB) return 1
+
         const countA = staffSlotCount.get(a.id) ?? 0
         const countB = staffSlotCount.get(b.id) ?? 0
         return countA - countB

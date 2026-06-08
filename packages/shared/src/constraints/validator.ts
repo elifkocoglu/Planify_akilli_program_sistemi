@@ -21,6 +21,7 @@ import { validateNotTogetherShift } from './rules/notTogetherShift'
 import { validateMustTogetherShift } from './rules/mustTogetherShift'
 import { validateTeacherNoOverlap } from './rules/teacherNoOverlap'
 import { validateClassNoOverlap } from './rules/classNoOverlap'
+import { validateRequiredOnDate } from './rules/requiredOnDate'
 
 /** Kısıt tipi → kural fonksiyonu eşleştirmesi */
 const ruleMap: Record<ConstraintType, RuleFunction | undefined> = {
@@ -39,6 +40,7 @@ const ruleMap: Record<ConstraintType, RuleFunction | undefined> = {
   must_together_shift: validateMustTogetherShift,
   teacher_no_overlap: validateTeacherNoOverlap,
   class_no_overlap: validateClassNoOverlap,
+  required_on_date: validateRequiredOnDate,
   custom: undefined, // custom kurallar harici olarak ele alınır
 }
 
