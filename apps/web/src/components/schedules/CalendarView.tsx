@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SlotEditModal } from './SlotEditModal'
+import { parseLocalDate } from '@/lib/utils/date'
 import type { SlotRecord } from '@/lib/api/types'
 
 interface StaffOption {
@@ -47,7 +48,10 @@ function getMonday(date: Date): Date {
 }
 
 function formatDateKey(date: Date): string {
-  return date.toISOString().slice(0, 10)
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 export function CalendarView({
@@ -58,7 +62,7 @@ export function CalendarView({
   startDate,
 }: CalendarViewProps) {
   const router = useRouter()
-  const [weekStart, setWeekStart] = useState(() => getMonday(new Date(startDate)))
+  const [weekStart, setWeekStart] = useState(() => getMonday(parseLocalDate(startDate)))
   const [editSlot, setEditSlot] = useState<SlotRecord | null>(null)
 
   // Map staff to colors

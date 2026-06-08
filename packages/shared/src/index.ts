@@ -30,6 +30,7 @@ export {
   getShiftDurationMinutes,
   getDatesInRange,
   getDayOfWeek,
+  addOneDay,
   doTimesOverlap,
   getMinutesBetween,
 } from './utils'

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { Clock, MapPin, ChevronRight, Calendar } from 'lucide-react'
+import { parseLocalDate } from '@/lib/utils/date'
 
 interface SlotData {
   id: string
@@ -18,7 +19,7 @@ interface TodayShiftCardProps {
 }
 
 function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00')
+  const d = parseLocalDate(dateStr)
   return d.toLocaleDateString('tr-TR', {
     day: 'numeric',
     month: 'long',

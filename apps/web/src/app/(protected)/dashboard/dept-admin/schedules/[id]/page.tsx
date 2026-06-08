@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/dialog'
 import type { ScheduleRecord, SlotRecord } from '@/lib/api/types'
 import type { UnresolvedSlot } from '@planify/shared'
+import { parseLocalDate } from '@/lib/utils/date'
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   draft: { label: 'Taslak', className: 'bg-amber-500/15 text-amber-400 border-amber-500/20' },
@@ -109,7 +110,7 @@ export default function DeptAdminScheduleDetailPage({ params }: { params: { id: 
   const isDraft = schedule?.status === 'draft'
 
   const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' })
+    parseLocalDate(d).toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' })
 
   const inputClass =
     'w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-blue-500/50 focus:outline-none focus:ring-1 focus:ring-blue-500/30'

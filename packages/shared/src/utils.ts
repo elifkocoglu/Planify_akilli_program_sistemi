@@ -47,33 +47,52 @@ export function getShiftDurationMinutes(start: string, end: string): number {
 
 /**
  * Verilen tarih aralığındaki tüm günleri "YYYY-MM-DD" listesi olarak döndürür.
+ * Local time kullanır — UTC kaymasından bağımsız, gün atlaması olmaz.
  */
 export function getDatesInRange(start: string, end: string): string[] {
   const dates: string[] = []
-  // 'T12:00:00' ile UTC kaymasından bağımsız hale getiriyoruz;
-  // yerel tarih bileşenlerini doğrudan okuyoruz — toISOString() kullanmıyoruz.
-  const current = new Date(start + 'T12:00:00')
-  const last    = new Date(end   + 'T12:00:00')
-  while (current <= last) {
+
+  const [sy, sm, sd] = start.split('-').map(Number)
+  const [ey, em, ed] = end.split('-').map(Number)
+
+  const startDate = new Date(sy, sm - 1, sd)
+  const endDate   = new Date(ey, em - 1, ed)
+
+  const current = new Date(startDate)
+
+  while (current <= endDate) {
     const y = current.getFullYear()
     const m = String(current.getMonth() + 1).padStart(2, '0')
     const d = String(current.getDate()).padStart(2, '0')
     dates.push(`${y}-${m}-${d}`)
+    // Local time üzerinde bir gün ilerlet
     current.setDate(current.getDate() + 1)
   }
   return dates
 }
 
 /**
+ * "YYYY-MM-DD" formatındaki tarihe bir gün ekler.
+ * Local time kullanır — timezone kayması olmaz.
+ */
+export function addOneDay(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  date.setDate(date.getDate() + 1)
+  const ny = date.getFullYear()
+  const nm = String(date.getMonth() + 1).padStart(2, '0')
+  const nd = String(date.getDate()).padStart(2, '0')
+  return `${ny}-${nm}-${nd}`
+}
+
+/**
  * "YYYY-MM-DD" formatındaki tarih için haftanın gününü döndürür.
  * 0=Pazar, 1=Pazartesi ... 6=Cumartesi
+ * Local time kullanır — UTC/yerel saat farkından gün kayması olmaz.
  */
-export function getDayOfWeek(date: string): number {
-  // Date constructor'ı kullanmadan doğrudan parse ediyoruz;
-  // böylece UTC/yerel saat farkından kaynaklanan gün kayması olmaz.
-  const [year, month, day] = date.split('-').map(Number)
-  // Zeller'in algoritması — 0=Pazar, 1=Pazartesi … 6=Cumartesi
-  return new Date(year, month - 1, day).getDay()
+export function getDayOfWeek(dateStr: string): number {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d).getDay()
 }
 
 /**

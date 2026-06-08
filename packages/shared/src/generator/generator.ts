@@ -8,6 +8,7 @@ import { validateSlot } from '../constraints/validator'
 import {
   getDatesInRange,
   getDayOfWeek,
+  addOneDay,
 } from '../utils'
 
 /**
@@ -36,12 +37,6 @@ function calculateEndTime(
   }
 }
 
-/** "YYYY-MM-DD" formatındaki tarihe bir gün ekler */
-function addOneDay(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00')
-  d.setDate(d.getDate() + 1)
-  return d.toISOString().split('T')[0]
-}
 
 /** Personelin belirtilen tarihte onaylı izni olup olmadığını kontrol eder */
 function isOnLeave(

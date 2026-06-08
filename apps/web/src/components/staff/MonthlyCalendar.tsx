@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { parseLocalDate } from '@/lib/utils/date'
 
 interface CalendarSlot {
   id: string
@@ -49,32 +50,23 @@ function getMonthDays(year: number, month: number) {
   // Previous month padding
   for (let i = startWeekday - 1; i >= 0; i--) {
     const d = new Date(year, month, -i)
-    days.push({
-      date: d.toISOString().split('T')[0],
-      day: d.getDate(),
-      isCurrentMonth: false,
-    })
+    const y = d.getFullYear(), mo = String(d.getMonth() + 1).padStart(2, '0'), dy = String(d.getDate()).padStart(2, '0')
+    days.push({ date: `${y}-${mo}-${dy}`, day: d.getDate(), isCurrentMonth: false })
   }
 
   // Current month
   for (let day = 1; day <= lastDay.getDate(); day++) {
     const d = new Date(year, month, day)
-    days.push({
-      date: d.toISOString().split('T')[0],
-      day,
-      isCurrentMonth: true,
-    })
+    const y = d.getFullYear(), mo = String(d.getMonth() + 1).padStart(2, '0'), dy = String(d.getDate()).padStart(2, '0')
+    days.push({ date: `${y}-${mo}-${dy}`, day, isCurrentMonth: true })
   }
 
   // Next month padding
   const remaining = 42 - days.length
   for (let i = 1; i <= remaining; i++) {
     const d = new Date(year, month + 1, i)
-    days.push({
-      date: d.toISOString().split('T')[0],
-      day: d.getDate(),
-      isCurrentMonth: false,
-    })
+    const y = d.getFullYear(), mo = String(d.getMonth() + 1).padStart(2, '0'), dy = String(d.getDate()).padStart(2, '0')
+    days.push({ date: `${y}-${mo}-${dy}`, day: d.getDate(), isCurrentMonth: false })
   }
 
   return days
@@ -91,15 +83,18 @@ export function MonthlyCalendar() {
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
 
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayNow = new Date()
+  const todayStr = `${todayNow.getFullYear()}-${String(todayNow.getMonth() + 1).padStart(2, '0')}-${String(todayNow.getDate()).padStart(2, '0')}`
 
   const fetchSlots = useCallback(async () => {
     setLoading(true)
     const supabase = createClient()
 
-    // Fetch range: prev month end to next month start
-    const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0]
-    const endDate = new Date(year, month + 2, 0).toISOString().split('T')[0]
+    // Fetch range: prev month end to next month start (local time based)
+    const sd = new Date(year, month - 1, 1)
+    const ed = new Date(year, month + 2, 0)
+    const startDate = `${sd.getFullYear()}-${String(sd.getMonth() + 1).padStart(2, '0')}-01`
+    const endDate = `${ed.getFullYear()}-${String(ed.getMonth() + 1).padStart(2, '0')}-${String(ed.getDate()).padStart(2, '0')}`
 
     const { data, error } = await supabase
       .from('schedule_slots')
@@ -293,7 +288,7 @@ export function MonthlyCalendar() {
                 <div>
                   <p className="text-xs text-slate-400 mb-1">Tarih</p>
                   <p className="text-sm font-medium text-white">
-                    {new Date(selectedSlot.date + 'T00:00:00').toLocaleDateString('tr-TR', {
+                    {parseLocalDate(selectedSlot.date).toLocaleDateString('tr-TR', {
                       day: 'numeric',
                       month: 'long',
                       year: 'numeric',

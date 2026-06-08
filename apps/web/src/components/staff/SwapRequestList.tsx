@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { respondToSwapRequest } from '@/lib/api/swap-requests'
 import { useUser } from '@/lib/auth/useUser'
 import type { SwapRequestRecord } from '@/lib/api/types'
+import { parseLocalDate } from '@/lib/utils/date'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -32,7 +33,7 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 
 function formatSlotInfo(slot: { date: string; start_time: string; end_time: string } | null | undefined): string {
   if (!slot) return '—'
-  const d = new Date(slot.date + 'T00:00:00').toLocaleDateString('tr-TR', {
+  const d = parseLocalDate(slot.date).toLocaleDateString('tr-TR', {
     day: 'numeric', month: 'short',
   })
   return `${d} ${slot.start_time.slice(0, 5)}-${slot.end_time.slice(0, 5)}`

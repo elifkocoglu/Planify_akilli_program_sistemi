@@ -74,7 +74,8 @@ function getMonthBounds() {
 }
 
 function formatTurkishDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00')
+  const [year, month, day] = dateStr.split('-').map(Number)
+  const d = new Date(year, month - 1, day)
   return d.toLocaleDateString('tr-TR', {
     weekday: 'long',
     day: 'numeric',
@@ -84,10 +85,11 @@ function formatTurkishDate(dateStr: string): string {
 }
 
 function formatShortDate(dateStr: string): { day: string; month: string } {
-  const d = new Date(dateStr + 'T00:00:00')
-  const day = d.toLocaleDateString('tr-TR', { day: '2-digit' })
-  const month = d.toLocaleDateString('tr-TR', { month: 'short' }).toUpperCase()
-  return { day, month }
+  const [year, month, day] = dateStr.split('-').map(Number)
+  const d = new Date(year, month - 1, day)
+  const dayStr = d.toLocaleDateString('tr-TR', { day: '2-digit' })
+  const monthStr = d.toLocaleDateString('tr-TR', { month: 'short' }).toUpperCase()
+  return { day: dayStr, month: monthStr }
 }
 
 function formatTime(t: string | null): string {

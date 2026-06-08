@@ -45,12 +45,13 @@ function formatTime(t: string | null): string {
 }
 
 function formatTurkishFull(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00')
+  const [year, month, day] = dateStr.split('-').map(Number)
+  const d = new Date(year, month - 1, day)
   const weekday = TURKISH_WEEKDAYS[d.getDay()]
-  const day = d.getDate()
-  const month = TURKISH_MONTHS[d.getMonth()]
-  const year = d.getFullYear()
-  return `${weekday}, ${day} ${month} ${year}`
+  const dayNum = d.getDate()
+  const monthName = TURKISH_MONTHS[d.getMonth()]
+  const yr = d.getFullYear()
+  return `${weekday}, ${dayNum} ${monthName} ${yr}`
 }
 
 /** Calculate total hours from an array of slots */

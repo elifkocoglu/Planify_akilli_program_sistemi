@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ArrowRightLeft, ChevronRight, Clock, Loader2, MapPin } from 'lucide-react'
+import { parseLocalDate } from '@/lib/utils/date'
 
 interface SlotOption {
   id: string
@@ -36,7 +37,7 @@ interface StaffOption {
 
 function formatTime(t: string) { return t.slice(0, 5) }
 function formatDate(d: string) {
-  return new Date(d + 'T00:00:00').toLocaleDateString('tr-TR', {
+  return parseLocalDate(d).toLocaleDateString('tr-TR', {
     day: 'numeric', month: 'long', weekday: 'short',
   })
 }

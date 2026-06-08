@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { AlertTriangle, Calendar, Loader2 } from 'lucide-react'
+import { parseLocalDate } from '@/lib/utils/date'
 
 const leaveTypes = [
   { value: 'annual', label: 'Yıllık İzin' },
@@ -33,8 +34,8 @@ interface ConflictSlot {
 }
 
 function countBusinessDays(startStr: string, endStr: string): number {
-  const start = new Date(startStr + 'T00:00:00')
-  const end = new Date(endStr + 'T00:00:00')
+  const start = parseLocalDate(startStr)
+  const end = parseLocalDate(endStr)
   let count = 0
   const current = new Date(start)
   while (current <= end) {
@@ -46,7 +47,7 @@ function countBusinessDays(startStr: string, endStr: string): number {
 }
 
 function formatDate(dateStr: string): string {
-  return new Date(dateStr + 'T00:00:00').toLocaleDateString('tr-TR', {
+  return parseLocalDate(dateStr).toLocaleDateString('tr-TR', {
     day: 'numeric',
     month: 'long',
   })

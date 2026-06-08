@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { SlotEditModal } from './SlotEditModal'
 import { deleteSlot } from '@/lib/api/schedules'
+import { parseLocalDate } from '@/lib/utils/date'
 import type { SlotRecord } from '@/lib/api/types'
 
 interface StaffOption {
@@ -62,7 +63,7 @@ export function SlotTable({ slots, scheduleId, isDraft, staffList }: SlotTablePr
   }
 
   const formatDate = (dateStr: string, dow: number) => {
-    const d = new Date(dateStr)
+    const d = parseLocalDate(dateStr)
     return `${dayNames[dow]}, ${d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`
   }
 

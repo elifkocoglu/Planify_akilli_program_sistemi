@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { cancelLeaveRequest } from '@/lib/api/leave-requests'
 import type { LeaveRequestRecord } from '@/lib/api/types'
+import { parseLocalDate } from '@/lib/utils/date'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -43,7 +44,7 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 }
 
 function formatDate(dateStr: string): string {
-  return new Date(dateStr + 'T00:00:00').toLocaleDateString('tr-TR', {
+  return parseLocalDate(dateStr).toLocaleDateString('tr-TR', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -51,8 +52,8 @@ function formatDate(dateStr: string): string {
 }
 
 function daysBetween(startStr: string, endStr: string): number {
-  const start = new Date(startStr + 'T00:00:00')
-  const end = new Date(endStr + 'T00:00:00')
+  const start = parseLocalDate(startStr)
+  const end = parseLocalDate(endStr)
   return Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
 }
 
