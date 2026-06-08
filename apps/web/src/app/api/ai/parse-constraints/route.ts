@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     // 4. Onaylı izinleri çek (tarih aralığına göre)
     const { data: leaves } = await supabase
       .from('leave_requests')
-      .select('staff_id, start_date, end_date, profiles(full_name)')
+      .select('staff_id, start_date, end_date, profiles!leave_requests_staff_id_fkey(full_name)')
       .eq('status', 'approved')
       .gte('end_date', dateRange.start)
       .lte('start_date', dateRange.end)
@@ -318,7 +318,46 @@ Diğer örnekler:
       }
     })
 
-    // 9. Audit log
+    // 9. Çakışma ve uyarı kontrolü
+    const warnings: string[] = []
+    const finalConstraints: ParsedConstraint[] = []
+
+    if (parsed.constraints) {
+      for (const c of parsed.constraints) {
+        if (c.type === 'required_on_date' && c.staffId) {
+          const reqDates = (c.value as { dates?: string[] }).dates || []
+          const staffLeaves = departmentLeaves.filter((l) => l.staff_id === c.staffId)
+          const validDates: string[] = []
+
+          for (const date of reqDates) {
+            const reqDateObj = new Date(date)
+            let isLeave = false
+            for (const leave of staffLeaves) {
+              const start = new Date(leave.start_date)
+              const end = new Date(leave.end_date)
+              if (reqDateObj >= start && reqDateObj <= end) {
+                isLeave = true
+                const staffName = getStaffName(leave.profiles) || c.staffName || 'Personel'
+                warnings.push(
+                  `${staffName} adlı personel ${date} tarihinde izinli olduğu için, o güne ait nöbet isteği İPTAL edildi.`
+                )
+              }
+            }
+            if (!isLeave) {
+              validDates.push(date)
+            }
+          }
+
+          if (validDates.length > 0) {
+            finalConstraints.push({ ...c, value: { dates: validDates } })
+          }
+        } else {
+          finalConstraints.push(c)
+        }
+      }
+    }
+
+    // 10. Audit log
     await supabase.from('audit_logs').insert({
       institution_id: profile.institution_id,
       user_id: profile.id,
@@ -327,7 +366,7 @@ Diğer örnekler:
       record_id: departmentId,
       new_value: {
         inputText: text.slice(0, 500),
-        constraintCount: (parsed.constraints ?? []).length,
+        constraintCount: finalConstraints.length,
         autoConstraintCount: autoConstraints.length,
         unrecognizedCount: (parsed.unrecognized ?? []).length,
       },
@@ -335,9 +374,10 @@ Diğer örnekler:
 
     return NextResponse.json({
       success: true,
-      constraints: parsed.constraints ?? [],
+      constraints: finalConstraints,
       autoConstraints,
       unrecognized: parsed.unrecognized ?? [],
+      warnings,
       summary: parsed.summary ?? '',
     })
   } catch (error: unknown) {

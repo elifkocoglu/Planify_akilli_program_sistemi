@@ -65,6 +65,7 @@ export function ScheduleForm({ departments, basePath }: ScheduleFormProps) {
   const [aiConstraints, setAiConstraints] = useState<ParsedConstraint[]>([])
   const [autoConstraints, setAutoConstraints] = useState<ParsedConstraint[]>([])
   const [unrecognized, setUnrecognized] = useState<string[]>([])
+  const [warnings, setWarnings] = useState<string[]>([])
   const [aiSummary, setAiSummary] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
@@ -139,6 +140,7 @@ export function ScheduleForm({ departments, basePath }: ScheduleFormProps) {
     setAiConstraints([])
     setAutoConstraints([])
     setUnrecognized([])
+    setWarnings([])
     setAiSummary('')
     setAiAnalyzed(false)
 
@@ -165,6 +167,7 @@ export function ScheduleForm({ departments, basePath }: ScheduleFormProps) {
       setAiConstraints(data.constraints ?? [])
       setAutoConstraints(data.autoConstraints ?? [])
       setUnrecognized(data.unrecognized ?? [])
+      setWarnings(data.warnings ?? [])
       setAiSummary(data.summary ?? '')
       setAiAnalyzed(true)
     } catch {
@@ -611,6 +614,19 @@ export function ScheduleForm({ departments, basePath }: ScheduleFormProps) {
                     <p className="text-xs text-slate-400 mt-2 ml-5">
                       Lütfen bunları daha açık yazarak tekrar deneyin veya manuel kısıt olarak ekleyin.
                     </p>
+                  </div>
+                )}
+
+                {/* Uyarılar */}
+                {warnings.length > 0 && (
+                  <div className="rounded-lg bg-orange-500/10 border border-orange-500/20 p-3 space-y-1">
+                    <p className="text-sm font-medium text-orange-400 flex items-center gap-1.5">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      Dikkat Edilmesi Gerekenler:
+                    </p>
+                    {warnings.map((w, i) => (
+                      <p key={i} className="text-xs text-orange-300/70 ml-5">• {w}</p>
+                    ))}
                   </div>
                 )}
 

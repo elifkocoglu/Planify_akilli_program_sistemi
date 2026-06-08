@@ -251,9 +251,22 @@ export function StaffList({ basePath, onInvite, departments }: StaffListProps) {
                       >
                         {getInitials(member.full_name)}
                       </div>
-                      <span className="text-sm font-medium text-white">
-                        {member.full_name}
-                      </span>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-white">
+                          {member.full_name}
+                        </span>
+                        {member.upcoming_leaves && member.upcoming_leaves.length > 0 && (
+                          <span className="text-xs text-orange-400/90 mt-0.5">
+                            İzinli: {member.upcoming_leaves.map(l => {
+                              // Aynı gün ise sadece tek tarih göster
+                              if (l.start === l.end) {
+                                return new Date(l.start).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })
+                              }
+                              return `${new Date(l.start).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })} - ${new Date(l.end).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}`
+                            }).join(', ')}
+                          </span>
+                        )}
+                      </div>
                     </Link>
                   </TableCell>
                   <TableCell className="text-sm text-slate-300">

@@ -143,6 +143,7 @@ export interface ParseConstraintsResponse extends BaseResponse {
   constraints?: ParsedConstraint[]
   autoConstraints?: ParsedConstraint[]
   unrecognized?: string[]
+  warnings?: string[]
   summary?: string
 }
 
@@ -152,17 +153,22 @@ export interface ParseConstraintsResponse extends BaseResponse {
 export interface StaffRecord {
   id: string
   full_name: string
-  role: 'super_admin' | 'institution_admin' | 'department_admin' | 'staff'
-  institution_id: string | null
-  department_id: string | null
-  title_id: string | null
-  weekly_max_hours: number | null
-  monthly_max_shifts: number | null
+  role: 'staff' | 'department_admin' | 'institution_admin'
+  institution_id?: string
+  department_id?: string
+  title_id?: string
+  weekly_max_hours?: number
+  monthly_max_shifts?: number
   is_active: boolean
   created_at: string
-  departments?: { name: string } | null
-  titles?: { name: string } | null
+
+  // Join table data
+  departments?: { name: string }
+  titles?: { name: string }
+
+  // Computed data
   slot_count?: number
+  upcoming_leaves?: { start: string; end: string }[]
 }
 
 /** Staff filtre parametreleri */

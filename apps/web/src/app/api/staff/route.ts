@@ -65,13 +65,16 @@ export async function GET(request: Request) {
 
     // Bu ayki slot sayılarını çek
     const now = new Date()
+    const today = now.toISOString().split('T')[0]
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
 
     const staffIds = staffList?.map((s) => s.id) ?? []
     let slotCounts: Record<string, number> = {}
+    let staffLeaves: Record<string, {start: string, end: string}[]> = {}
 
     if (staffIds.length > 0) {
+      // 1. Slotları çek
       const { data: slots } = await supabase
         .from('schedule_slots')
         .select('staff_id')
@@ -86,11 +89,29 @@ export async function GET(request: Request) {
           return acc
         }, {})
       }
+
+      // 2. İzinleri çek (Bugün ve sonrası için bitiş tarihi bugünden büyük/eşit olanlar)
+      const { data: leaves } = await supabase
+        .from('leave_requests')
+        .select('staff_id, start_date, end_date')
+        .in('staff_id', staffIds)
+        .eq('status', 'approved')
+        .gte('end_date', today)
+        .order('start_date', { ascending: true })
+
+      if (leaves) {
+        staffLeaves = leaves.reduce((acc, leave) => {
+          if (!acc[leave.staff_id]) acc[leave.staff_id] = []
+          acc[leave.staff_id].push({ start: leave.start_date, end: leave.end_date })
+          return acc
+        }, {} as Record<string, {start: string, end: string}[]>)
+      }
     }
 
     const staff = (staffList ?? []).map((s) => ({
       ...s,
       slot_count: slotCounts[s.id] ?? 0,
+      upcoming_leaves: staffLeaves[s.id] ?? [],
     }))
 
     return NextResponse.json({ success: true, staff })
