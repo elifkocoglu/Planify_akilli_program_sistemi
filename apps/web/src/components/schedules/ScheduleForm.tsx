@@ -46,6 +46,7 @@ export function ScheduleForm({ departments, basePath }: ScheduleFormProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [createdScheduleId, setCreatedScheduleId] = useState<string | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [analysisResult, setAnalysisResult] = useState<any>(null)
   const [analysisLoading, setAnalysisLoading] = useState(false)
 
@@ -255,6 +256,7 @@ export function ScheduleForm({ departments, basePath }: ScheduleFormProps) {
       try {
         const detailRes = await fetch(`/api/schedules/${scheduleId}`)
         const detailData = await detailRes.json()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const slots = detailData.slots?.map((s: any) => ({
           staffId: s.staff_id,
           date: s.date,
@@ -264,6 +266,7 @@ export function ScheduleForm({ departments, basePath }: ScheduleFormProps) {
 
         const constraintsRes = await fetch(`/api/constraints?departmentId=${departmentId}`)
         const constraintsData = await constraintsRes.json()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const constraintsList = constraintsData.constraints?.map((c: any) => ({
           staffId: c.staff_id,
           type: c.type,

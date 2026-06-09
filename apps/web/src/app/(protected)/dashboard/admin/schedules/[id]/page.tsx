@@ -165,6 +165,7 @@ export default function ScheduleDetailPage({ params }: { params: { id: string } 
             unresolved: unresolved,
             warnings: [],
             staffList: staffList.map(s => ({ id: s.id, fullName: s.full_name })),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             constraints: constraintsData.constraints?.map((c: any) => ({
               staffId: c.staff_id,
               type: c.type,
@@ -179,12 +180,14 @@ export default function ScheduleDetailPage({ params }: { params: { id: string } 
          toast.success("AI Analizi başarıyla tamamlandı")
          const updatedSchedule = { 
            ...schedule!, 
+           // eslint-disable-next-line @typescript-eslint/no-explicit-any
            settings: { ...((schedule as any).settings || {}), aiAnalysis: data.analysis } 
          } as ScheduleRecord
          setSchedule(updatedSchedule)
        } else {
          throw new Error(data.error)
        }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.message || 'Analiz başarısız oldu')
     } finally {
@@ -387,8 +390,10 @@ export default function ScheduleDetailPage({ params }: { params: { id: string } 
         </TabsContent>
 
         <TabsContent value="analysis" className="space-y-6">
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           {(schedule as any).settings?.aiAnalysis ? (
             <AIAnalysisReport 
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               analysis={(schedule as any).settings.aiAnalysis} 
               staffStats={calculateStaffStats()}
               unresolvedCount={unresolved.length}

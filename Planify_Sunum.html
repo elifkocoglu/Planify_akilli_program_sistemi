@@ -2,21 +2,129 @@
 <html lang="tr">
 <head>
   <meta charset="utf-8">
-  <title>Planify Sunumu</title>
+  <title>Planify - Akıllı Program Sistemi</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  
   <!-- Reveal.js CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reset.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/theme/league.min.css"> <!-- league, black, white, dracula vs seçilebilir -->
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
   
   <style>
-    .reveal h2 {
-      text-transform: none;
-      font-size: 2em;
+    :root {
+      --primary: #6366f1; /* Indigo */
+      --secondary: #10b981; /* Emerald */
+      --dark: #0f172a; /* Slate 900 */
+      --glass: rgba(255, 255, 255, 0.05);
+      --glass-border: rgba(255, 255, 255, 0.1);
     }
+    
+    body {
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      font-family: 'Inter', sans-serif;
+      color: #f8fafc;
+    }
+    
+    .reveal {
+      font-family: 'Inter', sans-serif;
+    }
+    
+    .reveal h1, .reveal h2, .reveal h3 {
+      font-family: 'Outfit', sans-serif;
+      text-transform: none;
+      font-weight: 800;
+      color: #f8fafc;
+      letter-spacing: -0.02em;
+    }
+
+    .reveal h2 {
+      font-size: 2.5rem;
+      margin-bottom: 1.5rem;
+      background: linear-gradient(to right, #818cf8, #34d399);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: inline-block;
+    }
+
+    /* Glassmorphism Card */
+    .glass-card {
+      background: var(--glass);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--glass-border);
+      border-radius: 1.5rem;
+      padding: 2rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+
+    .reveal ul {
+      list-style-type: none;
+      padding: 0;
+      margin: 0;
+    }
+
     .reveal ul li {
-      font-size: 0.85em;
-      margin-bottom: 15px;
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+      padding-left: 2rem;
+      position: relative;
+      line-height: 1.6;
+      color: #cbd5e1;
+    }
+
+    .reveal ul li::before {
+      content: '✦';
+      position: absolute;
+      left: 0;
+      color: var(--secondary);
+      font-size: 1.2rem;
+      top: 2px;
+    }
+
+    /* Resim yer tutucuları (Placeholder) */
+    .img-placeholder {
+      background: rgba(0,0,0,0.3);
+      border: 2px dashed rgba(255,255,255,0.2);
+      border-radius: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #94a3b8;
+      font-size: 1rem;
+      min-height: 300px;
+      margin-top: 20px;
+      transition: all 0.3s ease;
+    }
+    
+    .img-placeholder:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: rgba(99, 102, 241, 0.05);
+    }
+    
+    /* Gömülü resim (Kullanıcı kendi resmini eklediğinde çalışır) */
+    .slide-image {
+      border-radius: 1rem;
+      box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.1);
+      max-height: 400px;
+      margin-top: 20px;
+      object-fit: cover;
+    }
+
+    /* Özel Vurgular */
+    .gradient-text {
+      background: linear-gradient(to right, #818cf8, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-weight: 600;
     }
   </style>
 </head>
@@ -26,69 +134,164 @@
       
       <!-- Kapak Slaytı -->
       <section>
-        <h1 style="text-transform:none; font-size: 3em;">Planify</h1>
-        <h3 style="text-transform:none;">Akıllı Nöbet ve Ders Programı Sistemi</h3>
-        <p>Yapay Zeka Destekli Planlama Asistanı</p>
+        <div class="glass-card">
+          <div class="flex justify-center mb-6">
+            <div class="w-20 h-20 bg-gradient-to-tr from-indigo-500 to-emerald-400 rounded-2xl rotate-12 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+              <span class="text-4xl font-bold text-white -rotate-12">P</span>
+            </div>
+          </div>
+          <h1 style="font-size: 4rem; margin-bottom: 0.5rem;">Planify</h1>
+          <h3 style="font-size: 1.5rem; color: #94a3b8; font-weight: 400; margin-bottom: 2rem;">
+            Geleceğin Nöbet ve Ders Programı Sistemi
+          </h3>
+          <p class="text-lg text-emerald-400 font-medium tracking-wide uppercase text-sm">
+            Yapay Zeka Destekli Planlama Asistanı
+          </p>
+        </div>
       </section>
       
       <!-- Amaç Slaytı -->
       <section>
-        <h2>Projenin Amacı</h2>
-        <ul>
-          <li>Manuel, Excel tabanlı program hazırlama çilesini bitirmek.</li>
-          <li><strong>İnsan hatalarını</strong> (çakışmalar, yorgunluk limitleri ihlali) önlemek.</li>
-          <li>Vardiyaları personel arasında <strong>adil ve hakkaniyetli</strong> dağıtmak.</li>
-          <li>Yöneticilere her ay günlerce süren mesaiyi dakikalara indirmek.</li>
-        </ul>
+        <div class="glass-card text-left">
+          <h2>Projenin Amacı & Vizyon</h2>
+          <div class="grid grid-cols-2 gap-8 items-center mt-8">
+            <div>
+              <ul>
+                <li>Manuel ve Excel tabanlı karmaşık süreçleri sonlandırmak.</li>
+                <li><strong class="text-white">İnsan hatalarını</strong> minimuma indirmek (çakışmalar, limit ihlalleri).</li>
+                <li>Vardiyaları tüm personel arasında <strong class="text-emerald-400">adil ve şeffaf</strong> şekilde dağıtmak.</li>
+                <li>Yöneticilerin günlerini alan planlamayı saniyelere düşürmek.</li>
+              </ul>
+            </div>
+            <div>
+              <img src="./images/image_4.png" alt="Dashboard" class="slide-image w-full h-auto">
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- Mimari Slaytı -->
       <section>
-        <h2>Sistem Mimarisi</h2>
-        <ul>
-          <li><strong>Client (İstemci):</strong> Next.js 14 (Web) ve Expo / React Native (Mobil)</li>
-          <li><strong>Backend:</strong> Supabase (PostgreSQL, Auth, Edge Functions)</li>
-          <li><strong>AI Engine (Yapay Zeka):</strong> Google Gemini 1.5 Flash</li>
-          <li><strong>Altyapı:</strong> Turborepo ile Monorepo mimarisi</li>
-        </ul>
+        <div class="glass-card text-left">
+          <h2>Modern Sistem Mimarisi</h2>
+          <div class="grid grid-cols-2 gap-8 items-center mt-8">
+            <div>
+              <img src="./images/image_5.png" alt="AI Analiz Özeti" class="slide-image w-full h-auto">
+            </div>
+            <div>
+              <ul>
+                <li><strong class="text-indigo-400">İstemci:</strong> Next.js 14 (Web) ve Expo (Mobil) modern arayüzler.</li>
+                <li><strong class="text-indigo-400">Backend:</strong> Supabase, PostgreSQL ve Edge Functions.</li>
+                <li><strong class="text-emerald-400">Yapay Zeka:</strong> Google Gemini 1.5 Flash Entegrasyonu.</li>
+                <li><strong class="text-indigo-400">Altyapı:</strong> Turborepo ile yüksek performanslı Monorepo yönetimi.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- Tasarım Desenleri Slaytı -->
       <section>
-        <h2>Kullanılan Tasarım Desenleri</h2>
-        <ul>
-          <li><strong>Strategy Pattern:</strong> Her bir algoritma kısıtının (Örn: Hafta Sonu Yasak, Maksimum Nöbet) sisteme dinamik olarak eklenebilmesi.</li>
-          <li><strong>Factory Pattern:</strong> Gemini AI'dan dönen JSON verilerinin (kısıtların) sınıflara dönüştürülmesi.</li>
-          <li><strong>Observer Pattern:</strong> Realtime senkronizasyonu (Veritabanındaki bir değişim anında mobil ekrana yansır).</li>
-          <li><strong>Singleton Pattern:</strong> Performans için tekil Supabase veritabanı bağlantısı.</li>
-        </ul>
+        <div class="glass-card text-left">
+          <h2>Tasarım Desenleri (Design Patterns)</h2>
+          <div class="mt-8 space-y-4">
+            <div class="p-4 rounded-xl bg-white/5 border border-white/10">
+              <h4 class="text-xl font-semibold text-white mb-2">Strategy Pattern</h4>
+              <p class="text-sm text-slate-400">Hafta Sonu Yasak, Maksimum Nöbet gibi farklı algoritmik kısıtların sisteme modüler şekilde entegre edilmesi.</p>
+            </div>
+            <div class="p-4 rounded-xl bg-white/5 border border-white/10">
+              <h4 class="text-xl font-semibold text-white mb-2">Factory Pattern</h4>
+              <p class="text-sm text-slate-400">Gemini AI'dan dönen yapılandırılmamış doğal dil verilerinin sistem sınıflarına anında dönüştürülmesi.</p>
+            </div>
+            <div class="p-4 rounded-xl bg-white/5 border border-white/10">
+              <h4 class="text-xl font-semibold text-white mb-2">Observer Pattern</h4>
+              <p class="text-sm text-slate-400">Web panelindeki bir değişikliğin mobil cihazlara milisaniyeler içinde yansıması (Realtime Sync).</p>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- AI Slaytı -->
       <section>
-        <h2>Yapay Zeka (Gemini AI) Entegrasyonu</h2>
-        <p style="font-size: 0.8em; text-align: left;">
-          <strong>Problem:</strong> Yöneticilerin karmaşık teknik kısıt formlarını doldurmakta zorlanması.<br><br>
-          <strong>Çözüm:</strong> Yönetici kuralı doğal dil ile yazar:<br>
-          <em style="color:#f39c12;">"Dr. Ali'ye Pazartesi ve Cuma nöbet yazma, haftada en fazla 3 nöbet tutsun."</em><br><br>
-          Gemini bu metni <strong>anlar</strong> ve kısıt motorunun okuyabileceği yapılandırılmış JSON kurallarına anında çevirerek programı optimize eder.
-        </p>
+        <div class="glass-card text-left">
+          <div class="flex items-center gap-4 mb-6">
+            <span class="text-4xl">🤖</span>
+            <h2 style="margin:0;">Gemini AI Entegrasyonu</h2>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-8 items-start mt-8">
+            <div class="space-y-6">
+              <div class="p-4 rounded-xl bg-slate-800/50 border border-slate-700">
+                <p class="text-sm text-slate-400 mb-2">Problem:</p>
+                <p class="text-white font-medium">Karmaşık kural formlarını doldurmak yöneticiler için zordur.</p>
+              </div>
+              <div class="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/30">
+                <p class="text-sm text-indigo-300 mb-2">Planify'ın Çözümü (Doğal Dil):</p>
+                <p class="text-white italic">"Dr. Ali'ye Pazartesi nöbet yazma, haftada en fazla 3 nöbet tutsun."</p>
+              </div>
+              <p class="text-sm text-slate-300">
+                AI bu metni anlar ve kısıt motorunun okuyabileceği JSON kurallarına anında çevirerek programı optimize eder. Ek olarak oluşturulan programın <strong class="text-emerald-400">adillik analizini</strong> raporlar.
+              </p>
+            </div>
+            <div>
+              <img src="./images/image_2.png" alt="AI Kısıtları" class="slide-image w-full h-auto">
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Takas ve İzin Talebi Slaytı -->
+      <section>
+        <div class="glass-card text-left">
+          <div class="flex items-center gap-4 mb-6">
+            <span class="text-4xl">🔄</span>
+            <h2 style="margin:0;">Takas ve İzin Yönetimi</h2>
+          </div>
+          <div class="grid grid-cols-2 gap-8 items-center mt-8">
+            <div>
+              <ul>
+                <li><strong class="text-emerald-400">Kolay İzin Talebi:</strong> Personel kendi ekranından hızlıca mazeret izni veya yıllık izin talebi oluşturabilir.</li>
+                <li><strong class="text-indigo-400">Nöbet Takası:</strong> Acil durumlarda iki personel kendi aralarında tek tuşla vardiya takası başlatabilir.</li>
+                <li><strong class="text-white">Yönetici Onayı:</strong> İzin ve takas talepleri anında yöneticinin onayına düşer, onaylandığında program otomatik güncellenir.</li>
+                <li><strong class="text-white">Gerçek Zamanlı Bildirimler:</strong> Tüm süreçte taraflara sistem üzerinden canlı bildirimler gider.</li>
+              </ul>
+            </div>
+            <div>
+              <img src="./images/image_3.png" alt="Takas Yönetimi" class="slide-image w-full h-auto">
+            </div>
+          </div>
+        </div>
       </section>
       
       <!-- Güvenlik Slaytı -->
       <section>
-        <h2>Güvenlik Yaklaşımı</h2>
-        <ul>
-          <li><strong>Row Level Security (RLS):</strong> Sadece API'de değil, doğrudan veritabanı seviyesinde kırılmaz yetkilendirme katmanı.</li>
-          <li><strong>Rol Tabanlı Erişim:</strong> Süper Admin, Kurum Admini, Departman Admini ve Personel (Staff) hiyerarşisi.</li>
-          <li>Yetkisiz kayıtları engellemek için sadece yöneticiden gelen davet koduyla çalışan kapalı üyelik sistemi.</li>
-        </ul>
+        <div class="glass-card text-left">
+          <h2>Güvenlik & Yetkilendirme</h2>
+          <div class="mt-8">
+            <ul>
+              <li><strong class="text-white">Row Level Security (RLS):</strong> Doğrudan veritabanı seviyesinde, aşılamaz veri izolasyonu.</li>
+              <li><strong class="text-white">Rol Tabanlı Erişim:</strong> Süper Admin ➔ Kurum Admini ➔ Departman Admini ➔ Personel hiyerarşisi.</li>
+              <li><strong class="text-white">Kapalı Devre Sistem:</strong> Sadece yöneticiden gelen özel davet linki ve kodla çalışan güvenli üyelik altyapısı.</li>
+            </ul>
+            <div class="mt-8">
+               <img src="./images/image_1.png" alt="Personel Davet" class="slide-image w-full h-auto mx-auto max-w-2xl">
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- Son Slayt -->
       <section>
-        <h2>Teşekkürler</h2>
-        <p>Proje hakkında sorularınız?</p>
+        <div class="glass-card">
+          <div class="w-24 h-24 bg-gradient-to-tr from-emerald-400 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-xl shadow-emerald-500/20">
+            <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+          </div>
+          <h2 style="font-size: 3rem;">Teşekkürler</h2>
+          <p class="text-xl text-slate-400 mt-4">Proje hakkında sorularınız?</p>
+          <div class="mt-8 p-4 border border-white/10 rounded-lg inline-block bg-white/5">
+             <p class="text-sm font-mono text-indigo-300">github.com/Planify</p>
+          </div>
+        </div>
       </section>
 
     </div>
@@ -98,8 +301,17 @@
   <script>
     Reveal.initialize({
       hash: true,
-      slideNumber: 'c/t', // Slayt numarası gösterimi (current/total)
-      transition: 'convex' // 'none', 'fade', 'slide', 'convex', 'concave', 'zoom'
+      slideNumber: 'c/t',
+      transition: 'slide', // 'fade', 'slide', 'convex', 'concave', 'zoom'
+      backgroundTransition: 'fade',
+      controls: true,
+      progress: true,
+      center: true,
+      width: 1400,
+      height: 850,
+      margin: 0.04,
+      minScale: 0.2,
+      maxScale: 2.0
     });
   </script>
 </body>

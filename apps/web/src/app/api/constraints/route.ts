@@ -85,6 +85,7 @@ export async function GET(request: Request) {
           created_at: new Date().toISOString(),
           profiles: Array.isArray(l.profiles) ? l.profiles[0] : l.profiles,
           departments: null
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any)
       })
     }
